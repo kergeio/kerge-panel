@@ -11,9 +11,6 @@
 # Usage: scripts/release-verify.sh <dir> [file...]
 set -euo pipefail
 
-# The public half of the release key. The agent repository's
-# install-agent.sh carries the same key.
-readonly RELEASE_PUBKEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMMWMoTwuKCmpyWran5GZp5KiZuOIt6N/vzcfZsrdfpH kerge-release"
 readonly SIGNER="releases@kerge.io"
 readonly NAMESPACE="kerge-release"
 
@@ -24,14 +21,19 @@ die() {
 
 main() {
 	[ $# -ge 1 ] || die "usage: release-verify.sh <dir> [file...]"
-	local dir="$1"
+	local dir="$1" pubkey
 	shift
+
+	# The key install.sh verifies with, which is the key the agent
+	# repository's install-agent.sh carries too.
+	pubkey="$(sed -n 's/^RELEASE_PUBKEY="\(.*\)"$/\1/p' "$(dirname "$0")/../install.sh")"
+	[ -n "$pubkey" ] || die "install.sh has no RELEASE_PUBKEY"
 
 	local tmp
 	tmp="$(mktemp -d)"
 	# shellcheck disable=SC2064 # expand now: the variable is local
 	trap "rm -rf '$tmp'" EXIT
-	printf '%s namespaces="%s" %s\n' "$SIGNER" "$NAMESPACE" "$RELEASE_PUBKEY" >"$tmp/allowed_signers"
+	printf '%s namespaces="%s" %s\n' "$SIGNER" "$NAMESPACE" "$pubkey" >"$tmp/allowed_signers"
 	ssh-keygen -Y verify -f "$tmp/allowed_signers" -I "$SIGNER" -n "$NAMESPACE" \
 		-s "$dir/checksums.txt.sig" <"$dir/checksums.txt" ||
 		die "checksums.txt.sig is not a signature by the release key"

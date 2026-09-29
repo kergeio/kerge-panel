@@ -36,6 +36,9 @@ jobs:
       - name: Test
         run: make test
 
+      - name: Installer
+        run: make install-test
+
       - name: Build
         run: make build
 

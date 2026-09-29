@@ -2,8 +2,10 @@ SHELL := bash
 GO ?= go
 BIN := bin
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.8.0
+SHELLCHECK_IMAGE := koalaman/shellcheck:v0.11.0
+SHELL_SCRIPTS := install.sh $(wildcard scripts/*.sh scripts/testdata/*.sh)
 
-.PHONY: all build test lint fmt-check vet langcheck cfips commitcheck dcocheck vuln css css-check tzlist check clean
+.PHONY: all build test lint fmt-check vet langcheck cfips shellcheck install-test commitcheck dcocheck vuln css css-check tzlist check clean
 
 all: check
 
@@ -15,8 +17,8 @@ build:
 test:
 	$(GO) test -race ./...
 
-## lint: formatting, vet, English-only check, Cloudflare examples in sync
-lint: fmt-check vet langcheck cfips
+## lint: formatting, vet, English-only check, Cloudflare examples in sync, shell scripts
+lint: fmt-check vet langcheck cfips shellcheck
 
 fmt-check:
 	@out=$$(gofmt -l .); if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
@@ -29,6 +31,18 @@ langcheck:
 
 cfips:
 	./scripts/check-cloudflare-ips.sh
+
+## shellcheck: lint the shell scripts, through docker when it is not installed
+shellcheck:
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		shellcheck $(SHELL_SCRIPTS); \
+	else \
+		docker run --rm -v "$$PWD:/mnt" -w /mnt $(SHELLCHECK_IMAGE) $(SHELL_SCRIPTS); \
+	fi
+
+## install-test: run install.sh against throwaway containers (needs docker)
+install-test:
+	./scripts/test-install.sh
 
 ## commitcheck: check that all commit messages are English
 commitcheck:
