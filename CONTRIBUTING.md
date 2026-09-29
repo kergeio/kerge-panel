@@ -22,6 +22,8 @@ The line must match the author of the commit:
 Signed-off-by: Jane Doe <jane@example.com>
 ```
 
+CI rejects a change when any of its commits lacks this line.
+
 There is no CLA to sign.
 
 ## What belongs here

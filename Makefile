@@ -3,7 +3,7 @@ GO ?= go
 BIN := bin
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.8.0
 
-.PHONY: all build test lint fmt-check vet langcheck cfips commitcheck vuln css css-check tzlist check clean
+.PHONY: all build test lint fmt-check vet langcheck cfips commitcheck dcocheck vuln css css-check tzlist check clean
 
 all: check
 
@@ -34,6 +34,10 @@ cfips:
 commitcheck:
 	set -o pipefail; git log -z --format='%H%n%B' | $(GO) run ./tools/langcheck commits
 
+## dcocheck: check that every commit carries a DCO sign-off by its author
+dcocheck:
+	set -o pipefail; git log -z --no-merges --format='%H%n%an <%ae>%n%B' | $(GO) run ./tools/dcocheck
+
 ## vuln: scan dependencies for known vulnerabilities
 vuln:
 	$(GO) run $(GOVULNCHECK) ./...
@@ -55,7 +59,7 @@ tzlist:
 	$(GO) run ./tools/tzgen > internal/i18n/zones.go
 
 ## check: everything CI runs
-check: lint css-check test vuln commitcheck build
+check: lint css-check test vuln commitcheck dcocheck build
 
 clean:
 	rm -rf $(BIN)

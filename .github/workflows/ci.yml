@@ -30,6 +30,9 @@ jobs:
       - name: Commit messages
         run: make commitcheck
 
+      - name: DCO sign-off
+        run: make dcocheck
+
       - name: Test
         run: make test
 
