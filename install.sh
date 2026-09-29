@@ -551,7 +551,7 @@ check_ports() {
 	busy="$({
 		ss -Hltn '( sport = :80 or sport = :443 )'
 		ss -Hlun '( sport = :443 )'
-	} 2>/dev/null | awk '{ print $4 }' | sort -u | tr '\n' ' ')"
+	} 2>/dev/null | awk '{ print $4 }' | sort -u | words)"
 	[ -z "$busy" ] || die "ports 80 and 443 must be free for the panel's own Caddy, but these are in use: $busy
 If a web server already runs on this host, put the panel behind it instead:
   curl -fsSL https://get.kerge.io | sudo bash -s -- --external-proxy
@@ -562,7 +562,7 @@ Nothing was changed."
 check_dns() {
 	local addrs listed
 	addrs="$(resolve "$domain")"
-	listed="$(tr '\n' ' ' <<<"$addrs")"
+	listed="$(words <<<"$addrs")"
 	if [ -z "$addrs" ]; then
 		dns_warning "$domain does not resolve to any address yet"
 		return
@@ -579,9 +579,12 @@ check_dns() {
 		return
 	fi
 	if [ -z "$(comm -12 <(echo "$addrs") <(echo "$mine"))" ]; then
-		dns_warning "$domain resolves to $listed, but this host's public address is $(tr '\n' ' ' <<<"$mine")"
+		dns_warning "$domain resolves to $listed, but this host's public address is $(words <<<"$mine")"
 	fi
 }
+
+# words joins lines into one space-separated line.
+words() { paste -sd ' ' -; }
 
 # dns_warning lets the operator stop; without a terminal it only warns.
 dns_warning() {
@@ -589,7 +592,7 @@ dns_warning() {
 	if [ "$has_tty" = true ]; then
 		confirm "Continue anyway? [y/N] " n || die "nothing was changed"
 	else
-		warn "continuing; the certificate cannot be issued until this is fixed"
+		warn "continuing, as there is no terminal to ask on"
 	fi
 }
 
@@ -740,8 +743,16 @@ self_check() {
 		info "the panel answers on 127.0.0.1:3000; point your reverse proxy at it"
 	fi
 
-	info "checking https://$domain from the internet (this can take a minute while the certificate is issued)"
-	local deadline=$((SECONDS + SELFCHECK_SECONDS)) rc code headers="$workdir/headers"
+	# Behind an existing proxy there is no certificate to wait for, and the
+	# proxy is often configured only after the panel runs: one attempt.
+	local deadline=$SECONDS
+	if [ "$external" = yes ]; then
+		info "checking https://$domain through your reverse proxy"
+	else
+		info "checking https://$domain from the internet (this can take a minute while the certificate is issued)"
+		deadline=$((SECONDS + SELFCHECK_SECONDS))
+	fi
+	local rc code headers="$workdir/headers"
 	while :; do
 		rc=0
 		rm -f "$headers"

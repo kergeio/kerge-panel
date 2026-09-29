@@ -369,8 +369,7 @@ case_dns_mismatch() {
 	setup
 	echo "ip=198.51.100.7" >/cf/trace
 	install --domain panel.test
-	output_has "panel.test resolves to 127.0.0.1"
-	output_has "198.51.100.7"
+	output_has "panel.test resolves to 127.0.0.1, but this host's public address is 198.51.100.7"
 	assert_integrated Caddyfile
 
 	install --domain panel.test --cloudflare
