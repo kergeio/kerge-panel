@@ -1,0 +1,129 @@
+name: Release
+
+# Pushing a version tag on a commit of main publishes a release: the panel
+# image for linux/amd64 and linux/arm64 on GHCR, and the deployment files
+# with the compose files pinning that image by digest, checksums.txt and its
+# OpenSSH signature. A tag with a suffix (v1.2.3-rc.1) makes a pre-release,
+# which never becomes the latest release and moves no floating image tag.
+#
+# The panel compiles in the agent release that agent-release.env pins;
+# release the agent first.
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+
+env:
+  IMAGE: ghcr.io/kergeio/kerge
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Tag on main, CI passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/release-preflight.sh "$GITHUB_REF_NAME"
+
+      - name: Cloudflare ranges current
+        run: ./scripts/check-cloudflare-upstream.sh
+
+      - name: Pinned agent release
+        run: ./scripts/check-agent-release.sh "$GITHUB_REF_NAME"
+
+      - name: Check
+        run: make check
+
+  release:
+    needs: preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Image
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          agent_version="$(sed -n 's/^AGENT_VERSION=//p' agent-release.env)"
+          agent_sum="$(sed -n 's/^AGENT_SCRIPT_SHA256=//p' agent-release.env)"
+          tags=(--tag "$IMAGE:$version")
+          case "$version" in
+          *-*) ;;
+          *) tags+=(--tag "$IMAGE:latest") ;;
+          esac
+          printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --use --name release
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --build-arg AGENT_REPO=https://github.com/kergeio/kerge-agent \
+            --build-arg AGENT_VERSION="$agent_version" \
+            --build-arg AGENT_SCRIPT_SHA256="$agent_sum" \
+            --label org.opencontainers.image.version="$version" \
+            --label org.opencontainers.image.revision="$GITHUB_SHA" \
+            "${tags[@]}" --metadata-file "$RUNNER_TEMP/image.json" --push .
+          docker logout ghcr.io
+          digest="$(jq -r '."containerimage.digest"' "$RUNNER_TEMP/image.json")"
+          docker buildx imagetools inspect "$IMAGE@$digest"
+          echo "DIGEST=$digest" >>"$GITHUB_ENV"
+
+      - name: Deployment files
+        run: |
+          ./scripts/release-assets.sh "${GITHUB_REF_NAME#v}" "$DIGEST" dist
+          # Both compose files must load with the pinned image.
+          touch dist/.env
+          for f in compose.yml compose.external-proxy.yml; do
+            docker compose --project-directory dist -f "dist/$f" config --quiet
+          done
+          rm dist/.env
+
+      - name: Sign
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          key="$RUNNER_TEMP/release-key"
+          trap 'rm -f "$key"' EXIT
+          (umask 077 && printf '%s\n' "$RELEASE_SIGNING_KEY" >"$key")
+          ssh-keygen -Y sign -q -f "$key" -n kerge-release dist/checksums.txt
+
+      - name: Verify
+        run: ./scripts/release-verify.sh dist
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          agent_version="$(sed -n 's/^AGENT_VERSION=//p' agent-release.env)"
+          {
+            echo "Panel image: \`$IMAGE:${GITHUB_REF_NAME#v}\`"
+            echo
+            echo "Digest: \`$DIGEST\`"
+            echo
+            echo "Agent release this panel installs: v$agent_version"
+          } >"$RUNNER_TEMP/notes.md"
+          case "$GITHUB_REF_NAME" in
+          *-*) kind=--prerelease ;;
+          *) kind=--latest ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" "$kind"
