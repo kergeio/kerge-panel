@@ -1,0 +1,13 @@
+{{define "title"}}{{msg .Data.Title}}{{end}}
+{{define "content"}}
+<div class="mx-auto mt-6 max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+<h1 class="text-xl font-semibold">{{msg .Data.Title}}</h1>
+<p class="mt-2 text-sm text-gray-600">{{msg .Data.Body}}</p>
+<p class="mt-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-medium">{{.Data.Host}}</p>
+<form method="post" action="{{.Data.Action}}" class="mt-6 flex items-center gap-3">
+<input type="hidden" name="csrf_token" value="{{.CSRF}}">
+<button type="submit" class="rounded-md bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700">{{msg .Data.Submit}}</button>
+<a href="{{.Data.Cancel}}" class="text-sm text-gray-600 underline hover:text-gray-900">{{t "common.cancel"}}</a>
+</form>
+</div>
+{{end}}

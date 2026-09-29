@@ -1,0 +1,3 @@
+{{define "form-error"}}{{with .}}<p class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{{msg .}}</p>{{end}}{{end}}
+{{define "mask"}}{{if .Value}}<span class="font-mono" data-mask data-value="{{.Value}}">{{if .Shown}}{{.Value}}{{else}}&#42;&#42;&#42;{{end}}</span>{{else}}<span class="text-gray-400">{{t "common.none"}}</span>{{end}}{{end}}
+{{define "value"}}{{if .}}{{.}}{{else}}<span class="text-gray-400">{{t "common.none"}}</span>{{end}}{{end}}

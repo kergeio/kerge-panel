@@ -1,0 +1,32 @@
+# Kerge panel behind a reverse proxy you already run.
+# The panel listens on 127.0.0.1:3000 only; point your proxy there. Example
+# proxy configurations are in the examples directory of the repository.
+#
+# Released versions pin the panel image by digest.
+name: kerge
+
+services:
+  panel:
+    image: ghcr.io/kergeio/kerge:dev
+    container_name: kerge
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Trust X-Forwarded-For from the address your proxy's connections
+      # arrive from inside the container: the gateway of the network below.
+      # Change it together with KERGE_NET_SUBNET.
+      KERGE_TRUSTED_PROXIES: ${KERGE_TRUSTED_PROXIES:-172.30.0.1}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./data:/data
+    tmpfs:
+      - /tmp
+    networks:
+      - kerge
+
+networks:
+  kerge:
+    ipam:
+      config:
+        - subnet: ${KERGE_NET_SUBNET:-172.30.0.0/24}

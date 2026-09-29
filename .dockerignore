@@ -1,0 +1,17 @@
+# Keep the build context to the sources the image is built from.
+.git
+.github
+.cache
+bin
+dist
+data
+*.db
+*.db-shm
+*.db-wal
+.env
+*.test
+*.out
+coverage.*
+.DS_Store
+.idea
+.vscode

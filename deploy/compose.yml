@@ -1,0 +1,63 @@
+# Kerge panel with its own Caddy. Caddy obtains the
+# certificate and is the only service reachable from outside; the panel
+# publishes no port.
+#
+# With a domain proxied by Cloudflare, ./Caddyfile is Caddyfile.cloudflare
+# and ./caddy/conf.d holds the Cloudflare address ranges; otherwise
+# ./Caddyfile is the plain Caddyfile and ./caddy/conf.d is empty. install.sh
+# sets both up.
+#
+# Released versions pin the panel image by digest.
+name: kerge
+
+services:
+  panel:
+    image: ghcr.io/kergeio/kerge:dev
+    container_name: kerge
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Trust X-Forwarded-For from Caddy only, at either of its addresses.
+      KERGE_TRUSTED_PROXIES: ${KERGE_TRUSTED_PROXIES:-${KERGE_NET_CADDY_IP:-172.30.0.2},${KERGE_NET_CADDY_IP6:-fd6b:6572:6765::2}}
+    volumes:
+      - ./data:/data
+    tmpfs:
+      - /tmp
+    networks:
+      kerge:
+        ipv4_address: ${KERGE_NET_PANEL_IP:-172.30.0.3}
+        ipv6_address: ${KERGE_NET_PANEL_IP6:-fd6b:6572:6765::3}
+    # no ports: the panel is reachable only through caddy
+
+  caddy:
+    image: caddy:2.11.4@sha256:0c994536bddb66445885237f1a5dcc1916bccea922661c76b4e9fc24061f9b52
+    container_name: kerge-caddy
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/conf.d:/etc/caddy/conf.d:ro
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+    depends_on:
+      panel:
+        condition: service_healthy
+    networks:
+      kerge:
+        ipv4_address: ${KERGE_NET_CADDY_IP:-172.30.0.2}
+        ipv6_address: ${KERGE_NET_CADDY_IP6:-fd6b:6572:6765::2}
+
+networks:
+  kerge:
+    # IPv6 lets Docker forward visitors' IPv6 connections to Caddy with their
+    # own address; on an IPv4-only network they would all arrive from the
+    # network gateway.
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: ${KERGE_NET_SUBNET:-172.30.0.0/24}
+        - subnet: ${KERGE_NET_SUBNET6:-fd6b:6572:6765::/64}

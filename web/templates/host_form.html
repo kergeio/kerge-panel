@@ -1,0 +1,89 @@
+{{define "title"}}{{msg .Data.Title}}{{end}}
+{{define "content"}}
+<div class="mx-auto mt-6 max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+<h1 class="text-xl font-semibold">{{msg .Data.Title}}</h1>
+<form method="post" action="{{if .Data.ID}}/hosts/{{.Data.ID}}/edit{{else}}/hosts/new{{end}}" class="mt-6 space-y-4">
+{{template "form-error" .Data.Error}}
+<input type="hidden" name="csrf_token" value="{{.CSRF}}">
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "hosts.name"}}</span>
+<input name="name" type="text" value="{{.Data.Name}}" required maxlength="64" autofocus class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+<span class="mt-1 block text-xs text-gray-500">{{t "hosts.name.hint"}}</span>
+</label>
+{{if .Data.ID}}
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "hosts.note"}}</span>
+<input name="note" type="text" value="{{.Data.Note}}" maxlength="200" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "hosts.sort"}}</span>
+<input name="sort" type="number" value="{{.Data.Sort}}" step="1" min="-100000" max="100000" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+<span class="mt-1 block text-xs text-gray-500">{{t "hosts.sort.hint"}}</span>
+</label>
+<fieldset class="border-t border-gray-200 pt-4">
+<legend class="float-left mb-1 w-full text-sm font-semibold">{{t "hosts.reminder"}}</legend>
+<div class="clear-both space-y-4">
+<p class="text-xs text-gray-500">{{t "hosts.reminder.hint"}}</p>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "hosts.reminder.start"}}</span>
+<input name="remind_start" type="date" value="{{.Data.RemindStart}}" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+<span class="mt-1 block text-xs text-gray-500">{{t "hosts.reminder.start.hint"}}</span>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "hosts.reminder.cycle"}}</span>
+<select name="cycle_months" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.Cycles}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+</label>
+{{if .Data.HasReminder}}<button type="submit" name="reminder_clear" value="1" formnovalidate class="text-sm text-gray-600 underline hover:text-gray-900">{{t "hosts.reminder.clear"}}</button>{{end}}
+</div>
+</fieldset>
+<fieldset class="border-t border-gray-200 pt-4">
+<legend class="float-left mb-1 w-full text-sm font-semibold">{{t "hosts.traffic"}}</legend>
+<div class="clear-both space-y-4">
+<p class="text-xs text-gray-500">{{t "hosts.traffic.hint"}}</p>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "hosts.traffic.reset_day"}}</span>
+<select name="traffic_reset_day" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.Traffic.ResetDays}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+<span class="mt-1 block text-xs text-gray-500">{{t "hosts.traffic.reset_day.hint"}}</span>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "hosts.traffic.mode"}}</span>
+<select name="traffic_mode" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.Traffic.Modes}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "hosts.traffic.limit"}}</span>
+<span class="flex items-center gap-2">
+<input name="traffic_limit" type="text" inputmode="decimal" value="{{.Data.Traffic.Limit}}" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+<span class="text-sm text-gray-600">GiB</span>
+</span>
+<span class="mt-1 block text-xs text-gray-500">{{t "hosts.traffic.limit.hint"}}</span>
+</label>
+<fieldset data-iface-mode>
+<legend class="mb-1 text-sm font-medium">{{t "hosts.iface"}}</legend>
+<div class="flex gap-6 text-sm">
+<label class="inline-flex items-center gap-2"><input type="radio" name="iface_mode" value="system" class="accent-gray-900"{{if not .Data.Iface.Custom}} checked{{end}}>{{t "hosts.iface.system"}}</label>
+<label class="inline-flex items-center gap-2"><input type="radio" name="iface_mode" value="custom" class="accent-gray-900"{{if .Data.Iface.Custom}} checked{{end}}>{{t "hosts.iface.custom"}}</label>
+</div>
+<p data-iface-system class="mt-1 text-xs text-gray-500">{{t "hosts.iface.system.hint"}}</p>
+<div data-iface-custom class="mt-2">
+<input name="net_iface_exclude" type="text" value="{{.Data.Iface.List}}" maxlength="2048" spellcheck="false" autocapitalize="none" autocorrect="off" aria-label="{{t "hosts.iface.list"}}" class="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-gray-500 focus:outline-none">
+<span class="mt-1 block text-xs text-gray-500">{{t "hosts.iface.custom.hint"}}</span>
+</div>
+</fieldset>
+</div>
+</fieldset>
+{{else}}
+<p class="text-sm text-gray-600">{{t "hosts.add.hint"}}</p>
+{{end}}
+<div class="flex items-center gap-3">
+<button type="submit" class="rounded-md bg-gray-900 px-4 py-2 font-medium text-white hover:bg-gray-700">{{msg .Data.Submit}}</button>
+<a href="{{if .Data.ID}}/hosts/{{.Data.ID}}{{else}}/{{end}}" class="text-sm text-gray-600 underline hover:text-gray-900">{{t "common.cancel"}}</a>
+</div>
+</form>
+</div>
+{{end}}

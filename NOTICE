@@ -1,0 +1,12 @@
+Kerge panel
+Copyright 2026 The Kerge Authors
+
+This product includes software developed by The Kerge Authors
+(https://kerge.io).
+
+This product depends on github.com/kergeio/kerge-protocol, which is
+licensed under the Apache License 2.0 and carries the notice above.
+
+This product bundles uPlot (https://github.com/leeoniya/uPlot), which is
+licensed under the MIT License. Its files and its license text are in
+web/static/vendor/uplot/.

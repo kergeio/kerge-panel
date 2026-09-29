@@ -1,0 +1,101 @@
+@import "tailwindcss" source(none);
+
+@source "./templates";
+
+/* The state badge picks its colours in Go (internal/web/live.go), which
+   is not a place Tailwind looks for class names, so every class returned
+   from Go or from a script is listed here or it never reaches the
+   stylesheet. */
+@source inline("bg-green-100 text-green-800 bg-amber-100 text-amber-800 bg-red-100 text-red-800");
+
+/* The renewal date and its tag, the tag of a host that is not reporting
+   and the list's state dot (internal/web/reminders.go, live.go). */
+@source inline("font-medium text-red-700 text-amber-700 text-gray-900 text-gray-400");
+@source inline("bg-gray-100 text-gray-600 bg-green-500 bg-amber-500 bg-red-500");
+
+/* The dashboard's blocks, cards and rows: no solid
+   border, a faint ring and two soft shadows, one close and one spread.
+   A block that needs attention gets a red ring, and a row that opens a
+   host lifts a little under the pointer. */
+@layer components {
+	.surface {
+		box-shadow: 0 0 0 1px rgb(3 7 18 / 0.05), 0 1px 2px rgb(3 7 18 / 0.04), 0 4px 16px rgb(3 7 18 / 0.04);
+	}
+	.surface[data-alert] {
+		box-shadow: 0 0 0 1px rgb(239 68 68 / 0.6), 0 1px 2px rgb(3 7 18 / 0.04), 0 4px 16px rgb(3 7 18 / 0.04);
+	}
+	.surface-hover {
+		transition: box-shadow 150ms ease, transform 150ms ease;
+	}
+	.surface-hover:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 0 0 1px rgb(3 7 18 / 0.07), 0 2px 4px rgb(3 7 18 / 0.05), 0 8px 24px rgb(3 7 18 / 0.08);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.surface-hover {
+			transition: none;
+		}
+		.surface-hover:hover {
+			transform: none;
+		}
+	}
+}
+
+/* The bars of the dashboard are <progress> elements,
+   because the page may not set inline styles. The server marks each with
+   the level of the share it shows; a bar without a level draws nothing,
+   and one with a level shows at least a sliver even at zero. */
+@layer components {
+	.meter {
+		display: block;
+		width: 100%;
+		height: 100%;
+		appearance: none;
+		border: 0;
+		border-radius: 9999px;
+		overflow: hidden;
+		background-color: #f3f4f6;
+		--meter-fill: transparent;
+		--meter-min: 0;
+	}
+	.meter::-webkit-progress-bar {
+		border-radius: 9999px;
+		background-color: #f3f4f6;
+	}
+	.meter::-webkit-progress-value {
+		min-width: var(--meter-min);
+		border-radius: 9999px;
+		background-color: var(--meter-fill);
+	}
+	.meter::-moz-progress-bar {
+		min-width: var(--meter-min);
+		border-radius: 9999px;
+		background-color: var(--meter-fill);
+	}
+	.meter[data-level="low"] {
+		--meter-fill: #22c55e;
+		--meter-min: 3px;
+	}
+	.meter[data-level="mid"] {
+		--meter-fill: #f59e0b;
+		--meter-min: 3px;
+	}
+	.meter[data-level="high"] {
+		--meter-fill: #dc2626;
+		--meter-min: 3px;
+	}
+}
+
+/* The host's own interface exclusion list (host edit page) shows only
+   while "Custom" is chosen, and the note on the panel's rules only while
+   "System" is. No script is involved. */
+[data-iface-mode]:has(input[value="system"]:checked) [data-iface-custom],
+[data-iface-mode]:has(input[value="custom"]:checked) [data-iface-system] {
+	display: none;
+}
+
+/* A drop-down menu's button (a <summary>) shows no disclosure triangle;
+   Safari needs this besides list-style. */
+[data-menu-button]::-webkit-details-marker {
+	display: none;
+}

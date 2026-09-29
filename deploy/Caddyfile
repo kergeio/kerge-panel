@@ -1,0 +1,5 @@
+# Caddy in front of the Kerge panel, for a domain that points straight at
+# this host (not proxied by Cloudflare).
+{$KERGE_DOMAIN} {
+	reverse_proxy panel:3000
+}

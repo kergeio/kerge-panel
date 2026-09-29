@@ -1,0 +1,9 @@
+# Caddy in front of the Kerge panel, for a domain that points straight at
+# this host (not proxied by Cloudflare).
+#
+# The panel runs from compose.external-proxy.yml and listens on
+# 127.0.0.1:3000. Caddy obtains the certificate, proxies WebSocket
+# connections and sets X-Forwarded-For to the client's address by itself.
+panel.example.com {
+	reverse_proxy 127.0.0.1:3000
+}

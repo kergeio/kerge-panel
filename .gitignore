@@ -1,0 +1,23 @@
+# Build output
+/bin/
+/dist/
+
+# Local runtime data
+/data/
+*.db
+*.db-shm
+*.db-wal
+.env
+
+# Test and coverage output
+*.test
+*.out
+coverage.*
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# Downloaded tools
+/.cache/

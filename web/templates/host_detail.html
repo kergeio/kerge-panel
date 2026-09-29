@@ -1,0 +1,69 @@
+{{define "title"}}{{.Data.Name}}{{end}}
+{{define "scripts"}}<link rel="stylesheet" href="{{asset "vendor/uplot/uPlot.min.css"}}"><script src="{{asset "vendor/uplot/uPlot.iife.min.js"}}" defer></script><script src="{{asset "js/menu.js"}}" defer></script><script src="{{asset "js/charts.js"}}" defer></script>{{end}}
+{{define "content"}}
+<div class="flex items-center justify-between gap-4">
+<h1 class="flex min-w-0 items-center gap-3 text-xl font-semibold"><span class="truncate">{{.Data.Name}}</span><span class="shrink-0 rounded-full px-2 py-1 text-xs font-medium {{.Data.StateClass}}">{{.Data.StateText}}</span></h1>
+<details data-menu class="relative shrink-0">
+<summary data-menu-button class="flex h-11 cursor-pointer list-none items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 sm:h-9">{{t "detail.actions"}}<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+<div class="absolute right-0 z-10 mt-1.5 flex w-48 flex-col rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
+<a href="/hosts/{{.Data.ID}}/edit" class="rounded-md px-3 py-2 text-sm text-gray-900 hover:bg-gray-100">{{t "detail.actions.edit"}}</a>
+<a href="/hosts/{{.Data.ID}}/reset" class="rounded-md px-3 py-2 text-sm text-gray-900 hover:bg-gray-100">{{t "detail.actions.reset"}}</a>
+<hr class="my-1 border-gray-200">
+<a href="/hosts/{{.Data.ID}}/delete" class="rounded-md px-3 py-2 text-sm text-red-700 hover:bg-red-50">{{t "detail.actions.remove"}}</a>
+</div>
+</details>
+</div>
+{{with .Data.Notice}}<p class="mt-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700" role="status">{{msg .}}</p>{{end}}
+<section aria-label="{{t "detail.overview"}}" class="mt-5 rounded-lg border border-gray-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
+<dl class="grid grid-cols-2 gap-x-4 gap-y-3.5 text-sm lg:grid-cols-4 lg:gap-x-6 lg:gap-y-4.5">
+<div><dt class="text-xs text-gray-500">{{t "detail.ip"}}</dt><dd class="mt-0.5">{{template "mask" .Data.IP}}</dd></div>
+<div><dt class="text-xs text-gray-500">{{t "detail.system"}}</dt><dd class="mt-0.5">{{template "value" .Data.System}}</dd></div>
+<div><dt class="text-xs text-gray-500">{{t "detail.cpu"}}</dt><dd class="mt-0.5">{{template "value" .Data.CPU}}</dd></div>
+<div><dt class="text-xs text-gray-500">{{t "detail.memory"}}</dt><dd class="mt-0.5 tabular-nums">{{template "value" .Data.Memory}}</dd></div>
+<div><dt class="text-xs text-gray-500">{{t "detail.disk"}}</dt><dd class="mt-0.5 tabular-nums">{{template "value" .Data.Disk}}</dd></div>
+<div><dt class="text-xs text-gray-500">{{t "detail.uptime"}}</dt><dd class="mt-0.5 tabular-nums">{{template "value" .Data.Uptime}}</dd></div>
+{{with .Data.TrafficLimit}}<div><dt class="text-xs text-gray-500">{{t "detail.traffic_limit"}}</dt><dd class="mt-0.5 tabular-nums">{{.}}</dd></div>{{end}}
+<div><dt class="text-xs text-gray-500">{{t "detail.created"}}</dt><dd class="mt-0.5 tabular-nums">{{template "value" .Data.Created}}</dd></div>
+<div><dt class="text-xs text-gray-500">{{t "detail.last_seen"}}</dt><dd class="mt-0.5 tabular-nums">{{template "value" .Data.LastSeen}}</dd></div>
+<div><dt class="text-xs text-gray-500">{{t "detail.renewal"}}</dt><dd class="mt-0.5 tabular-nums {{.Data.Renewal.Class}}"{{with .Data.Renewal.Title}} title="{{.}}"{{end}}>{{.Data.Renewal.Date}}</dd></div>
+<div class="col-span-2 lg:col-span-4"><dt class="text-xs text-gray-500">{{t "detail.note"}}</dt><dd class="mt-0.5 break-words">{{template "value" .Data.Note}}</dd></div>
+</dl>
+</section>
+<div class="mt-6 flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+<p class="order-last flex flex-col items-center gap-1 text-center lg:order-first lg:flex-row lg:items-baseline lg:gap-3 lg:text-left">
+<span data-chart-time class="text-[13px] font-medium tabular-nums lg:text-sm"></span>
+<span data-chart-resolution class="text-xs text-gray-500"></span>
+</p>
+<div class="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-3">
+<div role="group" aria-label="{{t "chart.range"}}" class="grid grid-cols-5 overflow-hidden rounded-md border border-gray-300 bg-white lg:flex">
+{{range .Data.Ranges}}<a href="{{.URL}}" aria-label="{{msg .Label}}"{{if .Selected}} aria-current="page"{{end}} class="flex h-11 items-center justify-center border-l border-gray-300 text-sm font-medium first:border-l-0 lg:h-[34px] lg:px-3.5 {{if .Selected}}bg-gray-900 text-white{{else}}text-gray-700 hover:bg-gray-50{{end}}"><span class="lg:hidden">{{msg .Short}}</span><span class="hidden lg:inline">{{msg .Label}}</span></a>{{end}}
+</div>
+<div class="flex gap-2">
+<details data-menu data-stat-menu class="relative min-w-0 flex-1 lg:flex-none">
+<summary data-menu-button class="flex h-11 cursor-pointer list-none items-center justify-between gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 lg:h-9"><span><span class="sr-only">{{t "chart.stat"}}: </span><span data-stat-label>{{msg .Data.StatLabel}}</span></span><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+<div class="absolute right-0 z-10 mt-1.5 flex w-full flex-col rounded-lg border border-gray-200 bg-white p-1 shadow-lg lg:w-40">
+{{range .Data.Stats}}<a href="{{.URL}}" data-chart-stat="{{.Key}}" aria-current="{{if .Selected}}true{{else}}false{{end}}" class="flex items-center justify-between rounded-md px-3 py-2 text-sm text-gray-900 hover:bg-gray-100"><span data-stat-name>{{msg .Label}}</span><svg data-stat-check class="size-4 text-gray-900{{if not .Selected}} invisible{{end}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></a>{{end}}
+</div>
+</details>
+<button type="button" data-chart-refresh aria-label="{{t "chart.refresh"}}" title="{{t "chart.refresh"}}" class="flex size-11 shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 lg:size-9"><svg class="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+</div>
+</div>
+</div>
+<p data-chart-status role="status" class="mt-2 min-h-5 text-center text-xs text-gray-500 lg:text-left"></p>
+<div data-charts class="mt-2 grid gap-4 lg:grid-cols-2">
+{{range .Data.Charts}}
+<figure data-chart="{{.Name}}" data-unit="{{.Unit}}" data-mean="{{.Mean}}" data-max="{{.Max}}" data-capacity="{{.Capacity}}" data-axis-max="{{.AxisMax}}" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+<figcaption class="text-sm font-medium text-gray-700">{{msg .Title}}</figcaption>
+<div data-chart-plot class="relative mt-2 h-50">
+<span data-chart-note class="absolute inset-0 flex items-center justify-center text-xs text-gray-400"></span>
+<div data-chart-tip hidden class="pointer-events-none absolute z-10 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs shadow-md">
+<div data-tip-time class="tabular-nums text-gray-500"></div>
+<div data-tip-mean class="tabular-nums text-gray-900"></div>
+<div data-tip-max class="tabular-nums text-gray-900"></div>
+</div>
+</div>
+</figure>
+{{end}}
+</div>
+<script type="application/json" id="chart-config">{{.Data.Config}}</script>
+{{end}}

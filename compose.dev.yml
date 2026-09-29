@@ -1,0 +1,24 @@
+# Builds and runs the panel from source, for development.
+#
+#   docker compose -f compose.dev.yml up --build
+#
+# The panel is published on 127.0.0.1:3000 only. Open http://localhost:3000
+# in Chrome or Firefox; Safari rejects the panel's Secure cookies over plain
+# HTTP. The setup code is in the log: docker compose -f compose.dev.yml logs.
+#
+# The image is tagged like the one deploy/compose.yml refers to, so a local
+# build can also be tried with the release compose files.
+services:
+  panel:
+    build: .
+    image: ghcr.io/kergeio/kerge:dev
+    container_name: kerge-dev
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - data:/data
+    tmpfs:
+      - /tmp
+
+volumes:
+  data:

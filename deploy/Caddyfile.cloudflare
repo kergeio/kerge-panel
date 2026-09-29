@@ -1,0 +1,19 @@
+# Caddy in front of the Kerge panel, for a domain proxied by Cloudflare with
+# SSL/TLS encryption mode Full (strict).
+#
+# CF-Connecting-IP is believed only from Cloudflare's address ranges, which
+# install.sh writes to conf.d/cloudflare-ips.caddy. The visitor's address is
+# then handed to the panel as the only X-Forwarded-For entry. Requests that
+# bypass Cloudflare count as coming from their own address.
+{
+	servers {
+		import /etc/caddy/conf.d/cloudflare-ips.caddy
+		client_ip_headers CF-Connecting-IP
+	}
+}
+
+{$KERGE_DOMAIN} {
+	reverse_proxy panel:3000 {
+		header_up X-Forwarded-For {client_ip}
+	}
+}

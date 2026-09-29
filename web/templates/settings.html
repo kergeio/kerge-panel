@@ -1,0 +1,93 @@
+{{define "title"}}{{t "settings.title"}}{{end}}
+{{define "content"}}
+<div class="mx-auto max-w-md">
+<h1 class="text-xl font-semibold">{{t "settings.title"}}</h1>
+<section class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+<h2 class="mb-4 font-semibold">{{t "settings.password.title"}}</h2>
+<form method="post" action="/settings/password" class="space-y-4">
+{{template "form-error" .Data.PasswordError}}
+{{if .Data.PasswordChanged}}<p class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700" role="status">{{t "settings.password.changed"}}</p>{{end}}
+<input type="hidden" name="csrf_token" value="{{.CSRF}}">
+<input type="text" name="username" value="{{.User.Username}}" autocomplete="username" hidden>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.password.current"}}</span>
+<input name="current_password" type="password" autocomplete="current-password" required class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.password.new"}}</span>
+<input name="new_password" type="password" autocomplete="new-password" required minlength="12" maxlength="256" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+<span class="mt-1 block text-xs text-gray-500">{{t "setup.password.hint"}}</span>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.password.confirm"}}</span>
+<input name="new_password_confirm" type="password" autocomplete="new-password" required minlength="12" maxlength="256" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+</label>
+<button type="submit" class="rounded-md bg-gray-900 px-4 py-2 font-medium text-white hover:bg-gray-700">{{t "settings.password.submit"}}</button>
+</form>
+</section>
+<section class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+<h2 class="mb-4 font-semibold">{{t "settings.display.title"}}</h2>
+<form method="post" action="/settings/display" class="space-y-4">
+{{template "form-error" .Data.DisplayError}}
+{{if .Data.DisplaySaved}}<p class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700" role="status">{{t "settings.saved"}}</p>{{end}}
+<input type="hidden" name="csrf_token" value="{{.CSRF}}">
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "setup.language"}}</span>
+<select name="language" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.Languages}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "setup.timezone"}}</span>
+<select name="timezone" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.TimeZones}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+<span class="mt-1 block text-xs text-gray-500">{{t "settings.timezone.hint"}}</span>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.date_format"}}</span>
+<select name="date_format" class="w-full rounded-md border border-gray-300 px-3 py-2 tabular-nums focus:border-gray-500 focus:outline-none">
+{{range .Data.DateFormats}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+<span class="mt-1 block text-xs text-gray-500">{{t "settings.date_format.hint"}}</span>
+</label>
+<button type="submit" class="rounded-md bg-gray-900 px-4 py-2 font-medium text-white hover:bg-gray-700">{{t "settings.save"}}</button>
+</form>
+</section>
+<section class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+<h2 class="mb-4 font-semibold">{{t "settings.data.title"}}</h2>
+<form method="post" action="/settings/data" class="space-y-4">
+{{template "form-error" .Data.DataError}}
+{{if .Data.DataSaved}}<p class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700" role="status">{{t "settings.saved"}}</p>{{end}}
+<input type="hidden" name="csrf_token" value="{{.CSRF}}">
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.data.retention_raw"}}</span>
+<select name="retention_raw_hours" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.RetentionRaw}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+<span class="mt-1 block text-xs text-gray-500">{{t "settings.data.retention_raw.hint"}}</span>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.data.retention_1m"}}</span>
+<select name="retention_1m_days" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.RetentionMinute}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.data.retention_1h"}}</span>
+<select name="retention_1h_days" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.RetentionHour}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+<span class="mt-1 block text-xs text-gray-500">{{t "settings.data.retention.hint"}}</span>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.data.iface_exclude"}}</span>
+<input name="net_iface_exclude" type="text" value="{{.Data.IfaceExclude}}" maxlength="2048" spellcheck="false" autocapitalize="none" autocorrect="off" class="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-gray-500 focus:outline-none">
+<span class="mt-1 block text-xs text-gray-500">{{t "settings.data.iface_exclude.hint"}}</span>
+{{if .Data.IfaceExcludeDefault}}<span class="mt-1 block text-xs text-gray-500">{{t "settings.data.iface_exclude.default"}}</span>{{end}}
+</label>
+<button type="submit" class="rounded-md bg-gray-900 px-4 py-2 font-medium text-white hover:bg-gray-700">{{t "settings.save"}}</button>
+</form>
+</section>
+</div>
+{{end}}

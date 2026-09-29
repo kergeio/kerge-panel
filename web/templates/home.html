@@ -1,0 +1,101 @@
+{{define "title"}}{{t "home.title"}}{{end}}
+{{define "scripts"}}<script src="{{asset "js/dashboard.js"}}" defer></script>{{end}}
+{{define "meter"}}<progress max="100" value="{{.Value}}" data-level="{{.Level}}" aria-hidden="true" class="meter"></progress>{{end}}
+{{define "tag-icons"}}<svg data-icon="offline" data-icon-field="tag_icon" class="size-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"{{if ne . "offline"}} hidden{{end}}><path d="M18.84 12.25l1.72-1.71h-.02a5 5 0 0 0-.12-7.07 5 5 0 0 0-6.95 0l-1.72 1.71"/><path d="M5.17 11.75l-1.71 1.71a5 5 0 0 0 .12 7.07 5 5 0 0 0 6.95 0l1.71-1.71"/><path d="M8 2v3"/><path d="M2 8h3"/><path d="M16 19v3"/><path d="M19 16h3"/></svg><svg data-icon="stale" data-icon-field="tag_icon" class="size-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"{{if ne . "stale"}} hidden{{end}}><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>{{end}}
+{{define "detail-icons"}}<svg data-icon="offline" data-icon-field="icon" class="size-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"{{if ne . "offline"}} hidden{{end}}><path d="M18.84 12.25l1.72-1.71h-.02a5 5 0 0 0-.12-7.07 5 5 0 0 0-6.95 0l-1.72 1.71"/><path d="M5.17 11.75l-1.71 1.71a5 5 0 0 0 .12 7.07 5 5 0 0 0 6.95 0l1.71-1.71"/><path d="M8 2v3"/><path d="M2 8h3"/><path d="M16 19v3"/><path d="M19 16h3"/></svg><svg data-icon="stale" data-icon-field="icon" class="size-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"{{if ne . "stale"}} hidden{{end}}><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>{{end}}
+{{define "content"}}
+<div class="flex items-center justify-between gap-4">
+<h1 class="text-xl font-semibold">{{t "home.title"}}</h1>
+<div class="flex items-center gap-3">
+<span data-live-status class="text-sm text-gray-500" role="status"></span>
+{{if .Data.Cards}}<div role="group" aria-label="{{t "home.view"}}" class="hidden overflow-hidden rounded-md border border-gray-300 bg-white min-[980px]:flex">
+<button type="button" data-view-button="cards" aria-pressed="{{if .Data.List}}false{{else}}true{{end}}" aria-label="{{t "home.view.cards"}}" title="{{t "home.view.cards"}}" class="flex size-11 items-center justify-center text-gray-700 not-aria-pressed:hover:bg-gray-50 aria-pressed:bg-gray-900 aria-pressed:text-white sm:h-[34px] sm:w-9"><svg class="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
+<button type="button" data-view-button="list" aria-pressed="{{if .Data.List}}true{{else}}false{{end}}" aria-label="{{t "home.view.list"}}" title="{{t "home.view.list"}}" class="flex size-11 items-center justify-center border-l border-gray-300 text-gray-700 not-aria-pressed:hover:bg-gray-50 aria-pressed:bg-gray-900 aria-pressed:text-white sm:h-[34px] sm:w-9"><svg class="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
+</div>{{end}}
+<a href="/hosts/new" class="flex h-11 items-center rounded-md bg-gray-900 px-4 text-sm font-medium text-white hover:bg-gray-700 sm:h-9">{{t "hosts.add.submit"}}</a>
+</div>
+</div>
+{{with .Data.Notice}}<p class="mt-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700" role="status">{{msg .}}</p>{{end}}
+{{with .Data.Overview}}
+<section aria-label="{{t "home.overview"}}" data-overview data-time-zone="{{.Zone}}" data-date-format="{{.DateFormat}}" class="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+<div class="surface flex min-w-0 flex-col gap-1 rounded-2xl bg-white px-3.5 py-3 sm:px-5 sm:py-4">
+<span class="text-xs font-medium text-gray-500">{{t "home.clock"}}</span>
+<span data-clock-time class="text-xl font-semibold whitespace-nowrap tabular-nums sm:text-2xl">{{.Time}}</span>
+<span class="truncate text-xs text-gray-500 tabular-nums">{{.Zone}}<span class="hidden sm:inline"> · <span data-clock-date>{{.Date}}</span></span></span>
+</div>
+<div data-overview-alert="online"{{if .OnlineAlert}} data-alert{{end}} class="surface flex min-w-0 flex-col gap-1 rounded-2xl bg-white px-3.5 py-3 sm:px-5 sm:py-4">
+<span class="text-xs font-medium text-gray-500">{{t "home.online"}}</span>
+<span class="flex items-center gap-2 text-xl font-semibold whitespace-nowrap tabular-nums sm:text-2xl"><span aria-hidden="true" class="size-[9px] rounded-full bg-green-500"></span><span data-overview-field="online">{{.Online}}</span></span>
+<span data-overview-field="online_note" class="text-xs text-gray-500">{{.OnlineNote}}</span>
+</div>
+<div class="surface flex min-w-0 flex-col gap-1 rounded-2xl bg-white px-3.5 py-3 sm:px-5 sm:py-4">
+<span class="text-xs font-medium text-gray-500">{{t "home.traffic"}}</span>
+<span class="flex flex-col text-[15px] leading-snug font-semibold whitespace-nowrap tabular-nums sm:flex-row sm:gap-3 sm:text-lg sm:leading-normal"><span>{{t "card.arrow.up"}} <span data-overview-field="today_up">{{.TodayUp}}</span></span><span>{{t "card.arrow.down"}} <span data-overview-field="today_down">{{.TodayDown}}</span></span></span>
+<span class="truncate text-xs text-gray-500 tabular-nums">{{t "home.traffic.now"}} <span class="sm:hidden" data-overview-field="now_short">{{.NowShort}}</span><span class="hidden sm:inline">{{t "card.arrow.up"}} <span data-overview-field="now_up">{{.NowUp}}</span> {{t "card.arrow.down"}} <span data-overview-field="now_down">{{.NowDown}}</span></span></span>
+</div>
+<div data-overview-alert="renewals"{{if .RenewalsAlert}} data-alert{{end}} class="surface flex min-w-0 flex-col gap-1 rounded-2xl bg-white px-3.5 py-3 sm:px-5 sm:py-4">
+<span class="text-xs font-medium text-gray-500">{{t "home.renewals"}}</span>
+<span data-overview-field="renewals" class="text-xl font-semibold whitespace-nowrap tabular-nums sm:text-2xl">{{.Renewals}}</span>
+<span data-overview-field="renewals_note" class="truncate text-xs text-gray-500 tabular-nums">{{.RenewalsNote}}</span>
+</div>
+</section>
+{{end}}
+{{if .Data.Cards}}
+<div data-views="{{if .Data.List}}list{{else}}cards{{end}}" class="group">
+<div data-view="cards" class="mt-6 grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 min-[980px]:group-data-[views=list]:hidden">
+{{range .Data.Cards}}
+<article data-host-id="{{.ID}}" class="surface flex min-w-0 flex-col gap-3 rounded-2xl bg-white px-[18px] pt-[18px] pb-3.5">
+<header class="flex items-center justify-between gap-2">
+<h2 class="min-w-0 truncate font-semibold"><a href="/hosts/{{.ID}}" class="hover:underline">{{.Name}}</a></h2>
+<span data-field="state_text" data-class-field="state_class" data-classes="{{.StateClass}}" class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium {{.StateClass}}">{{.StateText}}</span>
+</header>
+<div class="-mt-1 hidden min-w-0 gap-1.5 overflow-hidden has-[>:not([hidden])]:flex">
+{{with .System}}<span class="min-w-0 truncate rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{{.}}</span>{{end}}
+<span data-tag title="{{.TagTitle}}" data-class-field="tag_class" data-classes="{{.TagClass}}" class="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap {{.TagClass}}"{{if not .Tag}} hidden{{end}}>{{template "tag-icons" .TagIcon}}<span data-field="tag" aria-hidden="true">{{.Tag}}</span><span data-field="tag_title" class="sr-only">{{.TagTitle}}</span></span>
+</div>
+<div class="flex justify-between gap-2 px-1 py-2 text-[13px] text-gray-700">
+<span class="flex items-center gap-1.5"><svg class="size-4 shrink-0 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span class="sr-only">{{t "detail.cpu"}}: </span><span data-field="cores">{{.Cores}}</span></span>
+<span class="flex items-center gap-1.5"><svg class="size-4 shrink-0 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="1"/><path d="M6 17v3M10 17v3M14 17v3M18 17v3M6 10v4M10 10v4M14 10v4M18 10v4"/></svg><span class="sr-only">{{t "detail.memory"}}: </span><span data-field="mem_total">{{.MemTotal}}</span></span>
+<span class="flex items-center gap-1.5"><svg class="size-4 shrink-0 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12H2"/><path d="M5.5 5.1L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/><path d="M6 16h.01M10 16h.01"/></svg><span class="sr-only">{{t "detail.disk"}}: </span><span data-field="disk_total">{{.DiskTotal}}</span></span>
+</div>
+<hr class="border-gray-100">
+<div class="flex flex-col gap-2.5 text-sm">
+<div class="grid grid-cols-[64px_minmax(0,1fr)_52px] items-center gap-3"><span class="text-gray-700">{{t "card.cpu"}}</span><span data-meter="cpu" class="block h-2">{{template "meter" .CPU}}</span><span data-field="cpu" class="text-right tabular-nums">{{.CPU.Text}}</span></div>
+<div class="grid grid-cols-[64px_minmax(0,1fr)_52px] items-center gap-3"><span class="text-gray-700">{{t "card.mem"}}</span><span data-meter="mem" class="block h-2">{{template "meter" .Mem}}</span><span data-field="mem" class="text-right tabular-nums">{{.Mem.Text}}</span></div>
+<div class="grid grid-cols-[64px_minmax(0,1fr)_52px] items-center gap-3"><span class="text-gray-700">{{t "card.disk"}}</span><span data-meter="disk" class="block h-2">{{template "meter" .Disk}}</span><span data-field="disk" class="text-right tabular-nums">{{.Disk.Text}}</span></div>
+</div>
+<hr class="border-gray-100">
+<dl class="flex flex-col gap-1.5 text-[13px]">
+<div class="flex justify-between gap-3"><dt class="text-gray-500">{{t "card.net"}}</dt><dd class="tabular-nums"><span data-field="up">{{.Up}}</span><span data-field="down" class="ml-3 empty:hidden">{{.Down}}</span></dd></div>
+<div class="flex justify-between gap-3"><dt class="text-gray-500" title="{{.TrafficTitle}}">{{.TrafficLabel}}</dt><dd data-field="traffic" class="tabular-nums">{{.Traffic}}</dd></div>
+<div class="flex justify-between gap-3"><dt class="text-gray-500">{{t "card.ip"}}</dt><dd>{{template "mask" .IP}}</dd></div>
+</dl>
+<div class="flex border-t border-gray-100 pt-2.5 text-xs text-gray-500">
+<span class="flex min-w-0 flex-1 justify-between gap-2 pr-3">{{t "card.renewal"}} <span data-field="renewal" data-class-field="renewal_class" data-classes="{{.RenewalClass}}" data-title-field="renewal_title" title="{{.RenewalTitle}}" class="tabular-nums {{.RenewalClass}}">{{.Renewal}}</span></span>
+<span class="flex min-w-0 flex-1 justify-between gap-2 border-l border-gray-100 pl-3">{{t "card.uptime"}} <span data-field="uptime" class="text-gray-900 tabular-nums">{{.Uptime}}</span></span>
+</div>
+</article>
+{{end}}
+</div>
+<div data-view="list" class="mt-6 hidden flex-col gap-2.5 min-[980px]:group-data-[views=list]:flex">
+{{range .Data.Cards}}
+<div data-host-id="{{.ID}}" class="surface surface-hover grid grid-cols-[196px_minmax(72px,0.9fr)_repeat(3,minmax(70px,0.9fr))_minmax(156px,1.8fr)_minmax(80px,1fr)_minmax(88px,0.9fr)] items-start gap-3 rounded-2xl bg-white px-5 py-3.5">
+<div class="flex min-w-0 items-center gap-3 self-center border-r border-gray-100 pr-3">
+<span data-class-field="dot_class" data-classes="{{.DotClass}}" class="size-2.5 shrink-0 rounded-full {{.DotClass}}"><span data-field="state_text" class="sr-only">{{.StateText}}</span></span>
+<div class="min-w-0"><a href="/hosts/{{.ID}}" class="block truncate text-[15px] font-semibold hover:underline">{{.Name}}</a><span class="block truncate text-xs text-gray-500">{{.System}}</span><span data-detail title="{{.Detail}}" class="mt-0.5 flex items-center gap-1 text-xs whitespace-nowrap text-gray-600"{{if not .DetailTime}} hidden{{end}}>{{template "detail-icons" .Icon}}<span data-field="detail_time" aria-hidden="true">{{.DetailTime}}</span><span data-field="detail" class="sr-only">{{.Detail}}</span></span><span class="mt-0.5 block truncate text-xs text-gray-500">{{template "mask" .IP}}</span></div>
+</div>
+<div class="min-w-0"><div class="mb-1 text-xs text-gray-500">{{t "card.uptime"}}</div><div data-field="uptime" class="truncate text-sm font-semibold tabular-nums">{{.Uptime}}</div></div>
+<div class="min-w-0"><div class="mb-1 text-xs text-gray-500">{{t "list.cpu"}}</div><div data-field="cpu" class="text-sm font-semibold tabular-nums">{{.CPU.Text}}</div><span data-meter="cpu" class="mt-[3px] block h-[3px]">{{template "meter" .CPU}}</span><div data-field="cores" class="mt-1 truncate text-[11px] text-gray-400 tabular-nums">{{.Cores}}</div></div>
+<div class="min-w-0"><div class="mb-1 text-xs text-gray-500">{{t "list.mem"}}</div><div data-field="mem" class="text-sm font-semibold tabular-nums">{{.Mem.Text}}</div><span data-meter="mem" class="mt-[3px] block h-[3px]">{{template "meter" .Mem}}</span><div data-field="mem_total" class="mt-1 truncate text-[11px] text-gray-400 tabular-nums">{{.MemTotal}}</div></div>
+<div class="min-w-0"><div class="mb-1 text-xs text-gray-500">{{t "list.disk"}}</div><div data-field="disk" class="text-sm font-semibold tabular-nums">{{.Disk.Text}}</div><span data-meter="disk" class="mt-[3px] block h-[3px]">{{template "meter" .Disk}}</span><div data-field="disk_total" class="mt-1 truncate text-[11px] text-gray-400 tabular-nums">{{.DiskTotal}}</div></div>
+<div class="min-w-0"><div class="mb-1 text-xs text-gray-500">{{t "card.net"}}</div><div class="truncate text-sm font-semibold tabular-nums"><span data-field="up">{{.Up}}</span><span data-field="down" class="ml-3 empty:hidden">{{.Down}}</span></div></div>
+<div class="min-w-0"><div class="mb-1 truncate text-xs text-gray-500" title="{{.TrafficTitle}}">{{.TrafficLabel}}</div><div data-field="traffic" class="truncate text-sm font-semibold tabular-nums">{{.Traffic}}</div></div>
+<div class="min-w-0"><div class="mb-1 text-xs text-gray-500">{{t "card.renewal"}}</div><div data-field="renewal" data-class-field="renewal_class" data-classes="{{.RenewalClass}}" data-title-field="renewal_title" title="{{.RenewalTitle}}" class="truncate text-sm font-semibold tabular-nums {{.RenewalClass}}">{{.Renewal}}</div></div>
+</div>
+{{end}}
+</div>
+</div>
+{{else}}
+<p class="mt-6 rounded-lg border border-dashed border-gray-300 bg-white px-4 py-10 text-center text-sm text-gray-500">{{t "home.empty"}} <a href="/hosts/new" class="underline">{{t "hosts.add.submit"}}</a></p>
+{{end}}
+{{end}}

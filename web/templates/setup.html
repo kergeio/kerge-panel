@@ -1,0 +1,45 @@
+{{define "title"}}{{t "setup.title"}}{{end}}
+{{define "scripts"}}<script src="{{asset "js/setup.js"}}" defer></script>{{end}}
+{{define "content"}}
+<div class="mx-auto mt-10 max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+<h1 class="text-xl font-semibold">{{t "setup.title"}}</h1>
+<p class="mt-1 mb-6 text-sm text-gray-600">{{t "setup.intro"}}</p>
+<form method="post" action="/setup" class="space-y-4">
+{{template "form-error" .Data.Error}}
+<input type="hidden" name="csrf_token" value="{{.CSRF}}">
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "setup.code"}}</span>
+<input name="code" type="text" autocomplete="off" spellcheck="false" required autofocus class="w-full rounded-md border border-gray-300 px-3 py-2 font-mono focus:border-gray-500 focus:outline-none">
+<span class="mt-1 block text-xs text-gray-500">{{t "setup.code.hint"}}</span>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "setup.username"}}</span>
+<input name="username" type="text" value="{{.Data.Username}}" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._\-]+" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+<span class="mt-1 block text-xs text-gray-500">{{t "setup.username.hint"}}</span>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "setup.password"}}</span>
+<input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="256" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+<span class="mt-1 block text-xs text-gray-500">{{t "setup.password.hint"}}</span>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "setup.password_confirm"}}</span>
+<input name="password_confirm" type="password" autocomplete="new-password" required minlength="12" maxlength="256" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "setup.language"}}</span>
+<select name="language" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.Languages}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "setup.timezone"}}</span>
+<select id="timezone" name="timezone" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-gray-500 focus:outline-none">
+{{range .Data.TimeZones}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+</select>
+<button id="use-browser-tz" type="button" hidden class="mt-1 text-xs text-gray-600 underline hover:text-gray-900">{{t "setup.timezone.use_browser"}}</button>
+</label>
+<button type="submit" class="w-full rounded-md bg-gray-900 px-3 py-2 font-medium text-white hover:bg-gray-700">{{t "setup.submit"}}</button>
+</form>
+</div>
+{{end}}
