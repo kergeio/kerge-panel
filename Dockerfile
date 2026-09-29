@@ -10,6 +10,15 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 RUN ./scripts/tailwind.sh -i web/input.css -o web/static/app.css --minify
 
+# The license texts of the third-party code in the image: the Go standard
+# library and modules compiled into the binary, and the vendored uPlot.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    mkdir -p /out/doc \
+ && ./scripts/third-party-licenses.sh ./cmd/panel \
+      "uPlot, vendored in web/static/vendor/uplot=web/static/vendor/uplot/LICENSE" \
+      > /out/doc/THIRD_PARTY_LICENSES \
+ && cp LICENSE NOTICE /out/doc/
+
 # The agent release the install command pins. Release
 # builds set all three; without a version and checksum the panel shows
 # placeholders. The repository defaults to the one the panel's code names.
@@ -33,6 +42,7 @@ LABEL org.opencontainers.image.source="https://github.com/kergeio/kerge-panel" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.description="Kerge monitoring panel"
 COPY --from=build /out/kerge-panel /kerge-panel
+COPY --from=build /out/doc/ /usr/share/doc/kerge-panel/
 # An empty /data owned by the panel's user, so that a new named volume
 # starts out writable. Bind mounts need the owner set on the host instead.
 COPY --from=build --chown=65532:65532 /out/data /data

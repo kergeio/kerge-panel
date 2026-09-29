@@ -29,7 +29,8 @@ The first release, v0.1.0.
 - Addresses and tokens masked on screen until revealed.
 - Settings for language, time zone, date format and data retention.
 - Docker image for linux/amd64 and linux/arm64 on
-  `ghcr.io/kergeio/kerge`, run with Docker Compose: with its own Caddy
+  `ghcr.io/kergeio/kerge`, with the license texts of all code in it in
+  `/usr/share/doc/kerge-panel/`, run with Docker Compose: with its own Caddy
   (automatic certificates) or behind a reverse proxy you already run,
   each for a domain proxied by Cloudflare or not.
 - `install.sh`: installs, upgrades and switches modes, after checking the

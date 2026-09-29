@@ -247,3 +247,9 @@ GNU Affero General Public License v3.0. See `LICENSE` and `NOTICE`.
 Running a modified version of this panel as a network service requires
 offering its source to the users of that service; see section 13 of the
 license.
+
+The panel image contains third-party code under its own licenses: the Go
+standard library, the modules from `go.mod` that the panel is built from,
+and uPlot. Their texts are in the image at
+`/usr/share/doc/kerge-panel/THIRD_PARTY_LICENSES`, next to `LICENSE` and
+`NOTICE`.
