@@ -1,0 +1,62 @@
+name: Bug report
+description: Something in the panel does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Before you paste logs or
+        screenshots, remove host IP addresses, enrollment tokens and anything
+        else you would not post publicly.
+  - type: input
+    id: version
+    attributes:
+      label: Panel version
+      description: The release you installed, or the commit if you built from source.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - Bundled Caddy, DNS only
+        - Bundled Caddy, Cloudflare proxy
+        - Own reverse proxy, DNS only
+        - Own reverse proxy, Cloudflare proxy
+        - Built from source
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Host and browser
+      description: Operating system and architecture of the panel host, Docker version, and the browser if the problem is in a page.
+      placeholder: Ubuntu 24.04 arm64, Docker 29.0, Firefox 150
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Output of `docker logs kerge` (and `docker logs kerge-caddy` if the problem is in reaching the panel).
+      render: text

@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest a change to the panel.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Kerge is a self-hosted, single-user, read-only monitoring panel. These
+        are out of scope and will not be added: a web terminal or SSH, running
+        commands on hosts, port forwarding or tunnels, file management, the
+        panel sending binaries, scripts or configuration to agents, agents
+        that update themselves or listen on a port, and user or role
+        management.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What would you like the panel to do?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other ways you have considered or use today.
