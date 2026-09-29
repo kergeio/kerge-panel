@@ -120,6 +120,14 @@ jobs:
             echo "Digest: \`$DIGEST\`"
             echo
             echo "Agent release this panel installs: v$agent_version"
+            if [ -f dist/install.sh ]; then
+              echo
+              echo "sha256 of install.sh:"
+              echo
+              echo '```'
+              sed -n 's/^\([0-9a-f]\{64\}\)  install\.sh$/\1/p' dist/checksums.txt
+              echo '```'
+            fi
           } >"$RUNNER_TEMP/notes.md"
           case "$GITHUB_REF_NAME" in
           *-*) kind=--prerelease ;;
