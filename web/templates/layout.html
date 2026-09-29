@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{.CSRF}}">
 <title>{{block "title" .}}{{end}} - {{t "app.name"}}</title>
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="{{asset "favicon.svg"}}" type="image/svg+xml">
 <link rel="stylesheet" href="{{asset "app.css"}}">
 {{block "scripts" .}}{{end}}
 {{if .User}}<script src="{{asset "js/mask.js"}}" defer></script>{{end}}

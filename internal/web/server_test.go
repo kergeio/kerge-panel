@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -277,6 +278,7 @@ func TestUninitializedGate(t *testing.T) {
 		{"POST", "/api/settings/view", http.StatusServiceUnavailable, ""},
 		{"GET", "/setup", http.StatusOK, ""},
 		{"GET", "/healthz", http.StatusOK, ""},
+		{"GET", "/favicon.ico", http.StatusOK, ""},
 		{"GET", "/static/app.css", http.StatusOK, ""},
 	}
 	for _, c := range cases {
@@ -418,6 +420,7 @@ func TestGateInitialized(t *testing.T) {
 		{"GET", "/", "bogus-session", http.StatusFound, "/login"},
 		{"GET", "/login", "", http.StatusOK, ""},
 		{"GET", "/healthz", "", http.StatusOK, ""},
+		{"GET", "/favicon.ico", "", http.StatusOK, ""},
 		{"GET", "/", sess, http.StatusOK, ""},
 		{"GET", "/settings", sess, http.StatusOK, ""},
 		{"GET", "/login", sess, http.StatusFound, "/"},
@@ -803,6 +806,37 @@ func TestStaticAssets(t *testing.T) {
 	rec := e.do("GET", "/static/app.css", "", nil)
 	if !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/css") || rec.Header().Get("Cache-Control") != "no-cache" {
 		t.Errorf("unversioned: %q %q", rec.Header().Get("Content-Type"), rec.Header().Get("Cache-Control"))
+	}
+}
+
+// Browsers ask for /favicon.ico on their own, before anyone signs in, and
+// every page links both icons.
+func TestFavicon(t *testing.T) {
+	e := newEnv(t, nil)
+	want, err := fs.ReadFile(webfiles.Files, "static/favicon.ico")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := e.do("GET", "/favicon.ico", "", nil)
+	if rec.Code != http.StatusOK || !bytes.Equal(rec.Body.Bytes(), want) {
+		t.Fatalf("GET /favicon.ico: %d, %d bytes, want the embedded %d bytes", rec.Code, rec.Body.Len(), len(want))
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "image/") {
+		t.Errorf("Content-Type %q", ct)
+	}
+
+	svg, err := e.srv.assetURL("favicon.svg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec := e.do("GET", svg, "", nil); rec.Code != http.StatusOK || !strings.HasPrefix(rec.Header().Get("Content-Type"), "image/svg+xml") {
+		t.Errorf("GET %s: %d %q", svg, rec.Code, rec.Header().Get("Content-Type"))
+	}
+	page := e.do("GET", "/setup", "", nil).Body.String()
+	for _, link := range []string{`<link rel="icon" href="/favicon.ico"`, `<link rel="icon" href="` + svg + `" type="image/svg+xml">`} {
+		if !strings.Contains(page, link) {
+			t.Errorf("page lacks %s", link)
+		}
 	}
 }
 

@@ -148,6 +148,7 @@ func New(opts Options) (*Server, error) {
 	always := route{public: true, beforeSetup: true}
 	s.handle("GET /static/", always, http.StripPrefix("/static", staticHandler(static)))
 	s.handle("GET /healthz", always, http.HandlerFunc(s.healthz))
+	s.handle("GET /favicon.ico", always, faviconHandler(static))
 	s.handle("GET /setup", route{setupOnly: true}, http.HandlerFunc(s.setupPage))
 	s.handle("POST /setup", route{setupOnly: true}, http.HandlerFunc(s.setupSubmit))
 	s.handle("GET /login", route{public: true}, http.HandlerFunc(s.loginPage))

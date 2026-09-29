@@ -91,6 +91,16 @@ func staticHandler(static fs.FS) http.Handler {
 	})
 }
 
+// faviconHandler serves the icon that browsers request at /favicon.ico on
+// their own. Pages link the SVG icon as well; this file is for browsers
+// that ask for the ICO regardless.
+func faviconHandler(static fs.FS) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		http.ServeFileFS(w, r, static, "favicon.ico")
+	})
+}
+
 // noDirFS hides directories: opening one fails with fs.ErrNotExist.
 type noDirFS struct{ fsys fs.FS }
 
