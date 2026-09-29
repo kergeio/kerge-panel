@@ -11,8 +11,9 @@ COPY . .
 RUN ./scripts/tailwind.sh -i web/input.css -o web/static/app.css --minify
 
 # The agent release the install command pins. Release
-# builds set all three; without them the panel shows placeholders.
-ARG AGENT_REPO=""
+# builds set all three; without a version and checksum the panel shows
+# placeholders. The repository defaults to the one the panel's code names.
+ARG AGENT_REPO="https://github.com/kergeio/kerge-agent"
 ARG AGENT_VERSION=""
 ARG AGENT_SCRIPT_SHA256=""
 ARG TARGETOS
