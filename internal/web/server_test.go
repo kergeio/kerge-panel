@@ -772,6 +772,17 @@ func TestPathTraversal(t *testing.T) {
 			if strings.Contains(string(body), secret) || strings.Contains(string(body), "{{define") {
 				t.Errorf("%s (signed in %v): leaked file content", target, session != "")
 			}
+			// A path with "." or ".." segments or doubled slashes gets 404
+			// straight away, not a redirect to its cleaned form.
+			if u, err := url.Parse(target); err == nil && !cleanPath(u.Path) {
+				first := resp
+				for first.Request.Response != nil {
+					first = first.Request.Response
+				}
+				if first.StatusCode != http.StatusNotFound {
+					t.Errorf("%s (signed in %v): first answer %d, want 404", target, session != "", first.StatusCode)
+				}
+			}
 			final := resp.Request.URL.Path
 			switch {
 			case session == "" && final == "/login" && resp.StatusCode == http.StatusOK:
@@ -781,6 +792,19 @@ func TestPathTraversal(t *testing.T) {
 			default:
 				t.Errorf("%s (signed in %v): final %s status %d, want 404/403", target, session != "", final, resp.StatusCode)
 			}
+		}
+	}
+}
+
+func TestCleanPath(t *testing.T) {
+	for _, p := range []string{"/", "/static/", "/static/app.css", "/hosts/1", "/api/hosts/1/metrics"} {
+		if !cleanPath(p) {
+			t.Errorf("cleanPath(%q) = false, want true", p)
+		}
+	}
+	for _, p := range []string{"/static/../secret.txt", "/static/./app.css", "/static//app.css", "/static/.", "/..", "//", "/hosts/1/.."} {
+		if cleanPath(p) {
+			t.Errorf("cleanPath(%q) = true, want false", p)
 		}
 	}
 }

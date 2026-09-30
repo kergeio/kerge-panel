@@ -13,6 +13,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/kergeio/kerge-panel/internal/auth"
@@ -181,6 +183,7 @@ func New(opts Options) (*Server, error) {
 	s.handle("/", route{}, http.HandlerFunc(s.pageNotFound))
 
 	var h http.Handler = s.gate(s.mux)
+	h = s.rejectUncleanPaths(h)
 	h = http.NewCrossOriginProtection().Handler(h)
 	h = s.withClientIP(h)
 	s.handler = s.securityHeaders(h)
@@ -230,6 +233,34 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "DENY")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// rejectUncleanPaths answers "not found" to a path that is not in its
+// canonical form: one with "." or ".." segments or doubled slashes. The mux
+// would redirect such a path to its cleaned form; refusing it outright
+// gives traversal attempts no answer but 404, signed in or not.
+func (s *Server) rejectUncleanPaths(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !cleanPath(r.URL.Path) {
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				s.apiNotFound(w, r)
+			} else {
+				s.pageNotFound(w, r)
+			}
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// cleanPath reports whether p is already in the form path.Clean gives it,
+// allowing the trailing slash of a directory path.
+func cleanPath(p string) bool {
+	c := path.Clean(p)
+	if strings.HasSuffix(p, "/") && c != "/" {
+		c += "/"
+	}
+	return c == p
 }
 
 func (s *Server) withClientIP(next http.Handler) http.Handler {
