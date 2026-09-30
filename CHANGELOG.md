@@ -5,9 +5,9 @@ Notable changes to the Kerge panel. The format follows
 follow [Semantic Versioning](https://semver.org/). Release candidates
 are not listed separately.
 
-## [Unreleased]
+## [0.1.0] - 2026-09-30
 
-The first release, v0.1.0.
+The first release.
 
 ### Added
 

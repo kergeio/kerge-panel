@@ -9,9 +9,10 @@ limits; it never runs anything on a host.
 
 ## Status
 
-Pre-release. Release candidates (`v0.1.0-rc.N`) are published for
-testing; `get.kerge.io` serves the installer from the first release,
-v0.1.0, on.
+Released. The current version is on the
+[releases page](https://github.com/kergeio/kerge-panel/releases/latest);
+changes are listed in [CHANGELOG.md](CHANGELOG.md). `get.kerge.io` serves
+the installer of the current version.
 
 ## Install
 
