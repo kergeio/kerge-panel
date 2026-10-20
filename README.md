@@ -107,6 +107,7 @@ echo "<sha256>  kerge-install.sh" | sha256sum -c - && sudo bash kerge-install.sh
 
 | Release | sha256 of `install.sh` |
 |---|---|
+| v0.1.1 | `95c87d99c62b362c36661b05e37a58aff05fd496ab9bec6a0bfd976520e67787` |
 | v0.1.0 | `cc95519162d364fb0460621ca87b28a450e731879ad4c31a0eddabb2502b27a4` |
 
 Each release also lists it in its release notes. The files the script
