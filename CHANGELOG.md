@@ -5,6 +5,25 @@ Notable changes to the Kerge panel. The format follows
 follow [Semantic Versioning](https://semver.org/). Release candidates
 are not listed separately.
 
+## [0.1.1] - 2026-10-20
+
+### Fixed
+
+- A host whose agent reconnected before the panel noticed the old
+  connection was gone showed as offline, with no live values, although
+  it kept reporting: the end of the old connection was taken for the end
+  of the new one.
+
+### Changed
+
+- Install commands install agent 0.1.1, which pings the panel and
+  notices a dead connection within 40 seconds.
+
+### Security
+
+- Built with Go 1.27.2, which fixes vulnerabilities in the standard
+  library, `html/template` among them.
+
 ## [0.1.0] - 2026-09-30
 
 The first release.
