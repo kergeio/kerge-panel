@@ -85,6 +85,9 @@ type env struct {
 	hosts   *hosts.Service
 	metrics *metrics.Service
 	status  *status.Registry
+	// connections holds what ends each agent connection that reporting
+	// opened in the registry.
+	connections map[int64]func()
 	// agents records what host management asked of the agent endpoint.
 	agents   *fakeAgents
 	settings *settings.Service

@@ -86,6 +86,9 @@ type entry struct {
 	// since the panel started. Such a host is offline when the connection
 	// drops, rather than falling back into the start-up grace period.
 	everConnected bool
+	// conn identifies the current connection. A connection that ends
+	// after a newer one took over must not mark the host disconnected.
+	conn uint64
 	// closeConn ends the agent connection when the host is written off as
 	// offline. It is nil when nothing is connected.
 	closeConn  func()
@@ -101,9 +104,10 @@ type Registry struct {
 	now       func() time.Time
 	startedAt time.Time
 
-	mu      sync.Mutex
-	entries map[int64]*entry
-	subs    map[*subscriber]struct{}
+	mu       sync.Mutex
+	entries  map[int64]*entry
+	lastConn uint64
+	subs     map[*subscriber]struct{}
 }
 
 // Options configure a Registry.
@@ -126,13 +130,21 @@ func New(opts Options) *Registry {
 	}
 }
 
-// Connected records that an agent of this host is connected. closeConn is
+// Connected records that an agent of this host is connected, and returns
+// the function that records the end of this connection. closeConn is
 // called if the host is later written off as offline while still holding
 // the connection.
-func (r *Registry) Connected(hostID int64, interval time.Duration, closeConn func()) {
+//
+// A host has one current connection: a new one takes over from any
+// earlier one, and the end of an earlier connection, which often comes
+// after the new one opened, leaves the host connected.
+func (r *Registry) Connected(hostID int64, interval time.Duration, closeConn func()) (disconnected func()) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.lastConn++
+	conn := r.lastConn
 	e := r.entry(hostID)
+	e.conn = conn
 	e.connected = true
 	e.everConnected = true
 	e.closeConn = closeConn
@@ -142,15 +154,17 @@ func (r *Registry) Connected(hostID int64, interval time.Duration, closeConn fun
 	if interval > 0 {
 		e.interval = clampInterval(interval)
 	}
+	return func() { r.disconnected(hostID, conn) }
 }
 
-// Disconnected records that the connection ended. The entry stays, so the
-// host keeps its last sample and its last data time.
-func (r *Registry) Disconnected(hostID int64) {
+// disconnected records that a connection ended. The entry stays, so the
+// host keeps its last sample and its last data time. A connection that is
+// no longer the current one changes nothing.
+func (r *Registry) disconnected(hostID int64, conn uint64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	e, ok := r.entries[hostID]
-	if !ok {
+	if !ok || e.conn != conn {
 		return
 	}
 	e.connected = false

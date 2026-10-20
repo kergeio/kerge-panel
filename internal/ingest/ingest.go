@@ -166,8 +166,8 @@ func (s *Service) run(conn *websocket.Conn, auth hosts.Auth, ip netip.Addr) {
 		// anything on the connection. Cancelling the session is how the
 		// evaluator later closes the connection of a host it has written
 		// off: the read ends, and the connection with it.
-		s.opts.Status.Connected(auth.HostID, 0, cancel)
-		defer s.opts.Status.Disconnected(auth.HostID)
+		disconnected := s.opts.Status.Connected(auth.HostID, 0, cancel)
+		defer disconnected()
 	}
 	if auth.Registered != nil {
 		if err := sess.write(ctx, auth.Registered); err != nil {

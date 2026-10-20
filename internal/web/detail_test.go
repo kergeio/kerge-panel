@@ -428,7 +428,7 @@ func TestDetailUptime(t *testing.T) {
 	if strings.Contains(page, "offline_since") {
 		t.Error("an online host's charts carry an offline time")
 	}
-	e.status.Disconnected(id)
+	e.disconnect(id)
 	_, page = b.get(path)
 	if overviewValue(page, "Uptime") != `<span class="text-gray-400">None</span>` {
 		t.Errorf("offline: Uptime = %q", overviewValue(page, "Uptime"))

@@ -126,15 +126,68 @@ func TestConnectingGracePeriod(t *testing.T) {
 // grace period is about agents that have not dialed in yet.
 func TestDisconnectedHostIsOfflineDuringTheGracePeriod(t *testing.T) {
 	r, c := newRegistry(t)
-	r.Connected(1, 5*time.Second, nil)
+	disconnected := r.Connected(1, 5*time.Second, nil)
 	r.Report(1, Sample{At: c.now()})
-	r.Disconnected(1)
+	disconnected()
 	if got := r.Get(1).State; got != Offline {
 		t.Errorf("state after a disconnect: %s, want %s", got, Offline)
 	}
 	// The last sample survives the disconnect, for the card to show.
 	if live := r.Get(1); !live.HasSample || live.LastDataAt.IsZero() {
 		t.Errorf("the last sample was dropped: %+v", live)
+	}
+}
+
+// An agent that reconnects before the panel noticed the old connection
+// was gone has two connections for a moment, and the old one usually ends
+// last. Its end must not take the host offline while the new connection
+// reports.
+func TestEndOfAReplacedConnectionKeepsTheHostOnline(t *testing.T) {
+	r, c := newRegistry(t)
+	oldDisconnected := r.Connected(1, 5*time.Second, nil)
+	r.Report(1, Sample{At: c.now()})
+
+	closed := make(chan struct{})
+	newDisconnected := r.Connected(1, 5*time.Second, func() { close(closed) })
+	oldDisconnected()
+	r.Report(1, Sample{At: c.now()})
+	if live := r.Get(1); live.State != Online || !live.Connected {
+		t.Fatalf("after the old connection ended: %+v, want online", live)
+	}
+
+	// The new connection still belongs to the evaluator: a silent host
+	// gets it closed.
+	c.advance(OfflineFloor + time.Second)
+	r.Evaluate([]int64{1})
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the current connection of an offline host was not closed")
+	}
+
+	// Its own end is what disconnects the host, and only once.
+	newDisconnected()
+	if live := r.Get(1); live.Connected {
+		t.Errorf("after the current connection ended: %+v, want disconnected", live)
+	}
+	oldDisconnected()
+	newDisconnected()
+	if live := r.Get(1); live.Connected || live.State != Offline {
+		t.Errorf("after repeated ends: %+v", live)
+	}
+}
+
+// The end of a connection of another host changes nothing.
+func TestEndOfAConnectionOnlyConcernsItsHost(t *testing.T) {
+	r, c := newRegistry(t)
+	disconnected := r.Connected(1, 5*time.Second, nil)
+	r.Connected(2, 5*time.Second, nil)
+	r.Report(1, Sample{At: c.now()})
+	r.Report(2, Sample{At: c.now()})
+	r.Forget(1)
+	disconnected()
+	if got := r.Get(2).State; got != Online {
+		t.Errorf("host 2: %s, want %s", got, Online)
 	}
 }
 
@@ -257,9 +310,9 @@ func TestConcurrentUse(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range 200 {
-				r.Connected(id, 5*time.Second, func() {})
+				disconnected := r.Connected(id, 5*time.Second, func() {})
 				r.Report(id, Sample{At: c.now()})
-				r.Disconnected(id)
+				disconnected()
 			}
 		}()
 		go func() {

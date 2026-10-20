@@ -464,6 +464,46 @@ func TestNewConnectionReplacesTheOld(t *testing.T) {
 	f.waitRows(1)
 }
 
+// The connection that was taken over ends after the new one opened, and
+// its end must leave the host online: the new connection is reporting.
+func TestReplacedConnectionLeavesTheHostOnline(t *testing.T) {
+	f := newFixture(t)
+	first, credential := f.enroll()
+	f.send(first, sample(1000, nil))
+	f.waitRows(1)
+
+	second, _, err := f.dial(protocol.AgentAuthorization(credential))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.CloseNow()
+
+	// The panel tells the first connection why and closes it.
+	if e, ok := f.recv(first).(*protocol.ErrorMessage); !ok || e.Code != protocol.CodeReplaced {
+		t.Fatalf("got %+v, want a replaced error", e)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	if _, _, err := first.Read(ctx); err == nil {
+		t.Fatal("the replaced connection stayed open")
+	}
+
+	f.send(second, sample(2000, nil))
+	// The panel winds the first connection down on its own goroutine, so
+	// give it time to do so before trusting the state.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if live := f.status.Get(f.hostID); live.State != status.Online || !live.Connected {
+			t.Fatalf("after the replaced connection ended: %+v, want online", live)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// The end of the current connection is what takes the host offline.
+	second.Close(websocket.StatusNormalClosure, "")
+	waitFor(t, func() bool { return f.status.Get(f.hostID).State == status.Offline })
+}
+
 // Too many messages end the connection.
 func TestMessageRateLimit(t *testing.T) {
 	f := newFixture(t)

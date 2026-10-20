@@ -67,7 +67,7 @@ func TestOverviewTraffic(t *testing.T) {
 	if ov := e.overview(); ov.TodayDown != "8.0 MiB" || ov.TodayUp != "8.0 MiB" {
 		t.Errorf("Tokyo: %+v", ov)
 	}
-	e.status.Disconnected(b)
+	e.disconnect(b)
 	if ov := e.overview(); ov.NowDown != "1.5 K/s" {
 		t.Errorf("rates without the offline host: %+v", ov)
 	}

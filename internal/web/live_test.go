@@ -40,10 +40,16 @@ func reporting(t *testing.T, e *env, name string) int64 {
 	if err := e.hosts.Connected(ctx, id, testIP()); err != nil {
 		t.Fatal(err)
 	}
-	e.status.Connected(id, 5*time.Second, nil)
+	if e.connections == nil {
+		e.connections = make(map[int64]func())
+	}
+	e.connections[id] = e.status.Connected(id, 5*time.Second, nil)
 	e.status.Report(id, sample(time.Now()))
 	return id
 }
+
+// disconnect ends the agent connection reporting opened for a host.
+func (e *env) disconnect(id int64) { e.connections[id]() }
 
 func sample(at time.Time) status.Sample {
 	cpu := 12.5
@@ -222,7 +228,7 @@ func TestDashboardOfflineHost(t *testing.T) {
 		c.Detail != "" || c.Icon != "" || c.Traffic != "2.0 GiB" {
 		t.Fatalf("online card = %+v", c)
 	}
-	e.status.Disconnected(id)
+	e.disconnect(id)
 	c = e.cardOf(id)
 	// The time is written in full, the year included.
 	if c.Detail != "Last seen at "+c.DetailTime || len(c.DetailTime) != len("2026-09-23 09:00") {
@@ -318,7 +324,7 @@ func TestLivePushesTheDashboard(t *testing.T) {
 
 	// A host that stopped reporting shows up as offline with the styling
 	// that goes with it, and the overview marks it.
-	e.status.Disconnected(id)
+	e.disconnect(id)
 	e.status.Publish(e.status.All([]int64{id}))
 	third := readPush(t, conn)
 	if len(third.Hosts) != 1 || third.Hosts[0].State != string(status.Offline) {
