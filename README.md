@@ -123,6 +123,90 @@ the panel shows on that host. The agent's
 [README](https://github.com/kergeio/kerge-agent#readme) describes what
 the command does and how to configure the agent.
 
+## Notifications
+
+The panel can post a message to one webhook when a host goes offline or
+comes back, on a renewal reminder day (at 09:00 in the panel's time
+zone), when a host reaches its traffic limit, and when disk, memory or
+CPU usage stays over its threshold. Set it up under **Settings ›
+Notifications**: the webhook URL, a JSON request body in which
+`{{message}}` stands for the message text, and the events to send.
+**Send test** posts a test message with what is in the form and shows
+the reply.
+
+Messages are one line of text, such as
+`[Kerge] web-1 (203.0.113.10) is offline`. Each event is sent once, when
+it starts and, for offline hosts and usage, when it ends; a failed
+delivery is not retried.
+
+Settings for common services follow. Each URL holds a secret: treat it
+like a password.
+
+**Telegram**: create a bot with [@BotFather](https://t.me/BotFather) for
+its token, and use the id of the chat that should receive the messages.
+
+```text
+https://api.telegram.org/bot<token>/sendMessage
+```
+
+```json
+{"chat_id": "<chat id>", "text": "{{message}}"}
+```
+
+**Discord**: in the channel's settings, under **Integrations ›
+Webhooks**, create a webhook and copy its URL. Discord answers a
+successful post with `204 No Content` and no body.
+
+```text
+https://discord.com/api/webhooks/<id>/<token>
+```
+
+```json
+{"content": "{{message}}"}
+```
+
+**Slack**: create an
+[incoming webhook](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks)
+for the channel. Slack answers a successful post with the text `ok`.
+
+```text
+https://hooks.slack.com/services/<...>
+```
+
+```json
+{"text": "{{message}}"}
+```
+
+**Feishu / Lark**: add a custom bot to the group and copy its webhook
+URL (`open.larksuite.com` for Lark). Signature verification puts a
+per-request signature in the body, which a fixed body cannot carry: use
+a custom keyword such as `Kerge`, which every message contains, or an IP
+allowlist instead.
+
+```text
+https://open.feishu.cn/open-apis/bot/v2/hook/<token>
+```
+
+```json
+{"msg_type": "text", "content": {"text": "{{message}}"}}
+```
+
+**DingTalk**: add a custom robot to the group and copy its webhook URL.
+For security, choose a custom keyword such as `Kerge`, or an IP
+allowlist (IPv4 only); signing adds a per-request signature to the URL,
+which a fixed URL cannot carry. DingTalk accepts at most 20 messages a
+minute per robot.
+
+```text
+https://oapi.dingtalk.com/robot/send?access_token=<token>
+```
+
+```json
+{"msgtype": "text", "text": {"content": "{{message}}"}}
+```
+
+Any other service that accepts a JSON POST works the same way.
+
 ## Cloudflare
 
 For a domain proxied by Cloudflare:
