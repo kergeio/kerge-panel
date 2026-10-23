@@ -22,6 +22,9 @@ const (
 	// SettingDateFormat is how dates are written, as one of
 	// i18n.DateFormats. Unset means the first.
 	SettingDateFormat = "date_format"
+	// SettingNotifications holds the outbound notification settings as
+	// JSON (notify.Config). Unset means notify.Default.
+	SettingNotifications = "notifications"
 	// How long each metrics table is kept, as a whole number of hours or
 	// days. Unset or unreadable means the default.
 	SettingRetentionRawHours   = "retention_raw_hours"

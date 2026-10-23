@@ -39,6 +39,10 @@ type settingsData struct {
 	// IfaceExcludeDefault reports whether the field shows the built-in
 	// list because nothing has been stored yet.
 	IfaceExcludeDefault bool
+
+	NotifyError msgKey
+	NotifySaved bool
+	Notify      notifyForm
 }
 
 // Retention choices are shown with a label of their own, one key per
@@ -87,6 +91,11 @@ func (s *Server) newSettingsData(ctx context.Context) (settingsData, error) {
 	}
 	s.fillDisplay(&data, p.Language, p.TimeZone, p.DateFormat)
 	s.fillRetention(&data, p.Retention)
+	c, err := s.opts.Settings.Notifications(ctx)
+	if err != nil {
+		return settingsData{}, err
+	}
+	data.Notify = notifyFormOf(c)
 	return data, nil
 }
 

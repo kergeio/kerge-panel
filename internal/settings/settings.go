@@ -1,6 +1,6 @@
 // Package settings holds the panel-wide preferences the settings page
-// edits: the interface language, the time zone, how long metrics are kept
-// and the default interface exclusion rules.
+// edits: the interface language, the time zone, how long metrics are kept,
+// the default interface exclusion rules and the outbound notifications.
 package settings
 
 import (
@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/kergeio/kerge-panel/internal/notify"
 	"github.com/kergeio/kerge-panel/internal/rollup"
 	"github.com/kergeio/kerge-panel/internal/store"
 )
@@ -78,6 +79,28 @@ func (s *Service) SaveData(ctx context.Context, retention rollup.Retention, ifac
 			return err
 		}
 		return store.SetSetting(ctx, tx, store.SettingNetIfaceExclude, ifaceExclude)
+	})
+}
+
+// Notifications returns the outbound notification settings, or the
+// defaults until the operator saves some.
+func (s *Service) Notifications(ctx context.Context) (notify.Config, error) {
+	value, ok, err := s.db.GetSetting(ctx, store.SettingNotifications)
+	if err != nil || !ok {
+		return notify.Default(), err
+	}
+	return notify.Decode(value), nil
+}
+
+// SaveNotifications stores the outbound notification settings. The caller
+// has checked them.
+func (s *Service) SaveNotifications(ctx context.Context, c notify.Config) error {
+	value, err := c.Encode()
+	if err != nil {
+		return err
+	}
+	return s.db.Write(ctx, func(ctx context.Context, tx *sql.Tx) error {
+		return store.SetSetting(ctx, tx, store.SettingNotifications, value)
 	})
 }
 

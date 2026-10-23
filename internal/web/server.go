@@ -21,6 +21,7 @@ import (
 	"github.com/kergeio/kerge-panel/internal/hosts"
 	"github.com/kergeio/kerge-panel/internal/i18n"
 	"github.com/kergeio/kerge-panel/internal/metrics"
+	"github.com/kergeio/kerge-panel/internal/notify"
 	"github.com/kergeio/kerge-panel/internal/settings"
 	"github.com/kergeio/kerge-panel/internal/setup"
 	"github.com/kergeio/kerge-panel/internal/status"
@@ -85,6 +86,9 @@ type Options struct {
 	// Health reports whether the panel can serve requests. Nil means
 	// always healthy.
 	Health func(context.Context) error
+	// Webhook sends the settings page's test notification. Nil means
+	// notify.NewSender.
+	Webhook *notify.Sender
 	// AgentWS serves the agent WebSocket endpoint. It authenticates with
 	// the Authorization header rather than a session, so the gate treats
 	// it as public, but it is closed while the panel is uninitialized.
@@ -119,6 +123,7 @@ type Server struct {
 	tmpl         map[string]map[string]*template.Template // lang -> page -> template
 	assets       map[string]string                        // static file name -> content hash
 	setupLimiter *auth.Limiter
+	webhook      *notify.Sender
 	handler      http.Handler
 }
 
@@ -139,6 +144,10 @@ func New(opts Options) (*Server, error) {
 		mux:          http.NewServeMux(),
 		routes:       make(map[string]route),
 		setupLimiter: auth.NewLimiter(),
+		webhook:      opts.Webhook,
+	}
+	if s.webhook == nil {
+		s.webhook = notify.NewSender()
 	}
 	if s.assets, err = hashAssets(static); err != nil {
 		return nil, err
@@ -160,6 +169,7 @@ func New(opts Options) (*Server, error) {
 	s.handle("POST /settings/password", route{}, http.HandlerFunc(s.changePassword))
 	s.handle("POST /settings/display", route{}, http.HandlerFunc(s.saveDisplay))
 	s.handle("POST /settings/data", route{}, http.HandlerFunc(s.saveData))
+	s.handle("POST /settings/notifications", route{}, http.HandlerFunc(s.saveNotifications))
 	s.handle("GET /{$}", route{}, http.HandlerFunc(s.homePage))
 	s.handle("GET /api/live", route{kind: apiRoute}, http.HandlerFunc(s.liveWS))
 	s.handle("GET /hosts/new", route{}, http.HandlerFunc(s.hostNewPage))
@@ -176,6 +186,7 @@ func New(opts Options) (*Server, error) {
 	s.handle("POST /api/hosts/{id}/reminder/snooze", route{kind: apiRoute}, http.HandlerFunc(s.reminderSnooze))
 	s.handle("POST /api/settings/reveal", route{kind: apiRoute}, http.HandlerFunc(s.saveReveal))
 	s.handle("POST /api/settings/view", route{kind: apiRoute}, http.HandlerFunc(s.saveView))
+	s.handle("POST /api/settings/notifications/test", route{kind: apiRoute}, http.HandlerFunc(s.testNotification))
 	if opts.AgentWS != nil {
 		s.handle("GET /api/agent/ws", route{kind: apiRoute, public: true}, opts.AgentWS)
 	}

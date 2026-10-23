@@ -99,3 +99,9 @@
 [data-menu-button]::-webkit-details-marker {
 	display: none;
 }
+
+/* A usage event that is switched off shows its threshold and duration in
+   grey (settings page, Notifications). No script is involved. */
+[data-threshold]:has(input[type="checkbox"]:not(:checked)) [data-threshold-values] {
+	color: #9ca3af;
+}

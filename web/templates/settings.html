@@ -1,4 +1,5 @@
 {{define "title"}}{{t "settings.title"}}{{end}}
+{{define "scripts"}}<script src="{{asset "js/notify.js"}}" defer></script>{{end}}
 {{define "content"}}
 <div class="mx-auto max-w-md">
 <h1 class="text-xl font-semibold">{{t "settings.title"}}</h1>
@@ -88,6 +89,73 @@
 </label>
 <button type="submit" class="rounded-md bg-gray-900 px-4 py-2 font-medium text-white hover:bg-gray-700">{{t "settings.save"}}</button>
 </form>
+</section>
+<section class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+<h2 class="mb-4 font-semibold">{{t "settings.notify.title"}}</h2>
+{{with .Data.Notify}}<form method="post" action="/settings/notifications" class="space-y-4" data-notify-form>
+{{template "form-error" $.Data.NotifyError}}
+{{if $.Data.NotifySaved}}<p class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700" role="status">{{t "settings.saved"}}</p>{{end}}
+<input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+<label class="flex items-center gap-2 text-sm font-medium">
+<input type="checkbox" name="notify_enabled" value="1"{{if .Enabled}} checked{{end}} class="size-4 accent-gray-900">
+{{t "settings.notify.enabled"}}
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.notify.url"}}</span>
+<input name="webhook_url" type="url" value="{{.URL}}" maxlength="2048" spellcheck="false" autocapitalize="none" autocorrect="off" class="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-gray-500 focus:outline-none">
+</label>
+<label class="block">
+<span class="mb-1 block text-sm font-medium">{{t "settings.notify.body"}}</span>
+<textarea name="webhook_body" rows="4" maxlength="8192" spellcheck="false" autocapitalize="none" autocorrect="off" class="w-full resize-y rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-gray-500 focus:outline-none">{{.Body}}</textarea>
+<span class="mt-1 block text-xs text-gray-500">{{t "settings.notify.body.hint"}} <a href="https://github.com/kergeio/kerge-panel#notifications" target="_blank" rel="noopener noreferrer" class="text-gray-700 underline hover:text-gray-900">{{t "settings.notify.examples"}}</a></span>
+</label>
+<div class="space-y-2">
+<div class="flex items-center gap-3">
+<button type="button" data-notify-test class="rounded-md border border-gray-300 bg-white px-4 py-2 font-medium hover:bg-gray-50 disabled:opacity-50">{{t "settings.notify.test"}}</button>
+<span data-notify-status role="status" class="text-sm font-medium tabular-nums text-gray-500 data-[ok=false]:text-red-700 data-[ok=true]:text-green-700"></span>
+</div>
+<div data-notify-result hidden class="overflow-hidden rounded-md border border-gray-200">
+<div role="tablist" aria-label="{{t "settings.notify.reply"}}" class="flex border-b border-gray-200 bg-gray-50">
+<button type="button" role="tab" id="notify-tab-body" aria-controls="notify-panel-body" aria-selected="true" data-notify-tab="body" class="border-b-2 border-transparent px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 aria-selected:border-gray-900 aria-selected:bg-white aria-selected:text-gray-900">{{t "settings.notify.reply.body"}}</button>
+<button type="button" role="tab" id="notify-tab-headers" aria-controls="notify-panel-headers" aria-selected="false" data-notify-tab="headers" class="border-b-2 border-transparent px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 aria-selected:border-gray-900 aria-selected:bg-white aria-selected:text-gray-900">{{t "settings.notify.reply.headers"}}</button>
+</div>
+<pre role="tabpanel" id="notify-panel-body" aria-labelledby="notify-tab-body" data-notify-panel="body" class="max-h-60 overflow-auto bg-white px-3 py-2.5 font-mono text-xs leading-normal whitespace-pre-wrap [overflow-wrap:anywhere]"></pre>
+<pre role="tabpanel" id="notify-panel-headers" aria-labelledby="notify-tab-headers" data-notify-panel="headers" hidden class="max-h-60 overflow-auto bg-white px-3 py-2.5 font-mono text-xs leading-normal whitespace-pre-wrap [overflow-wrap:anywhere]"></pre>
+</div>
+</div>
+<div class="border-t border-gray-200"></div>
+<div>
+<h3 class="text-sm font-semibold">{{t "settings.notify.events"}}</h3>
+<p class="mt-1 text-xs text-gray-500">{{t "settings.notify.events.hint"}}</p>
+</div>
+<div class="space-y-3.5 text-sm">
+<label class="flex items-start gap-2">
+<input type="checkbox" name="event_offline" value="1"{{if .Offline}} checked{{end}} class="mt-0.5 size-4 accent-gray-900">
+<span><span class="block font-medium">{{t "settings.notify.event.offline"}}</span><span class="mt-0.5 block text-xs text-gray-500">{{t "settings.notify.event.offline.hint"}}</span></span>
+</label>
+<label class="flex items-start gap-2">
+<input type="checkbox" name="event_renewal" value="1"{{if .Renewal}} checked{{end}} class="mt-0.5 size-4 accent-gray-900">
+<span><span class="block font-medium">{{t "settings.notify.event.renewal"}}</span><span class="mt-0.5 block text-xs text-gray-500">{{t "settings.notify.event.renewal.hint"}}</span></span>
+</label>
+<label class="flex items-start gap-2">
+<input type="checkbox" name="event_traffic" value="1"{{if .Traffic}} checked{{end}} class="mt-0.5 size-4 accent-gray-900">
+<span><span class="block font-medium">{{t "settings.notify.event.traffic"}}</span><span class="mt-0.5 block text-xs text-gray-500">{{t "settings.notify.event.traffic.hint"}}</span></span>
+</label>
+{{range .Thresholds}}<div data-threshold class="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+<label class="flex items-center gap-2 font-medium sm:w-36">
+<input type="checkbox" name="{{.Field}}_on" value="1"{{if .On}} checked{{end}} class="size-4 accent-gray-900">
+{{msg .Label}}
+</label>
+<span data-threshold-values class="ml-6 flex items-center gap-1.5 sm:ml-0">&ge;
+<input type="number" name="{{.Field}}_percent" value="{{.Percent}}" min="1" max="100" required aria-label="{{msg .Label}}: {{t "settings.notify.percent"}}" class="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-right tabular-nums focus:border-gray-500 focus:outline-none">
+% {{t "settings.notify.for"}}
+<input type="number" name="{{.Field}}_minutes" value="{{.Minutes}}" min="1" max="60" required aria-label="{{msg .Label}}: {{t "settings.notify.minutes"}}" class="w-14 rounded-md border border-gray-300 px-2 py-1.5 text-right tabular-nums focus:border-gray-500 focus:outline-none">
+{{t "settings.notify.min"}}
+</span>
+</div>
+{{end}}</div>
+<button type="submit" class="rounded-md bg-gray-900 px-4 py-2 font-medium text-white hover:bg-gray-700">{{t "settings.save"}}</button>
+</form>{{end}}
 </section>
 </div>
 {{end}}
