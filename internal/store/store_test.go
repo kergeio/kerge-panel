@@ -135,7 +135,7 @@ func TestInitialSchemaTables(t *testing.T) {
 		}
 		got = append(got, n)
 	}
-	want := "enroll_tokens hosts metrics_1h metrics_1m metrics_raw sessions settings setup_state traffic_daily traffic_state users"
+	want := "alerts enroll_tokens hosts metrics_1h metrics_1m metrics_raw sessions settings setup_state traffic_daily traffic_state users"
 	if strings.Join(got, " ") != want {
 		t.Errorf("tables = %v, want %s", got, want)
 	}

@@ -191,6 +191,8 @@
   "nav.reveal.hide": "Hide IP addresses",
   "nav.reveal.show": "Show IP addresses",
   "nav.settings": "Settings",
+  "notify.message.offline": "[Kerge] {host} is offline",
+  "notify.message.online": "[Kerge] {host} is back online",
   "notify.message.test": "[Kerge] Test notification",
   "reminder.card.in_day": "in 1 day",
   "reminder.card.in_days": "in {n} days",

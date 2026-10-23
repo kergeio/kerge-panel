@@ -23,11 +23,13 @@ import (
 	"time"
 	_ "time/tzdata" // IANA time zones must be available without host files
 
+	"github.com/kergeio/kerge-panel/internal/alerts"
 	"github.com/kergeio/kerge-panel/internal/auth"
 	"github.com/kergeio/kerge-panel/internal/hosts"
 	"github.com/kergeio/kerge-panel/internal/i18n"
 	"github.com/kergeio/kerge-panel/internal/ingest"
 	"github.com/kergeio/kerge-panel/internal/metrics"
+	"github.com/kergeio/kerge-panel/internal/notify"
 	"github.com/kergeio/kerge-panel/internal/rollup"
 	"github.com/kergeio/kerge-panel/internal/settings"
 	"github.com/kergeio/kerge-panel/internal/setup"
@@ -149,6 +151,15 @@ func serve(logger *slog.Logger) error {
 		return loc
 	}
 
+	language := func() string {
+		lang, _, err := db.GetSetting(context.Background(), store.SettingLanguage)
+		if err != nil {
+			logger.Error("read language setting", "err", err)
+		}
+		return lang // unknown or empty values fall back to i18n.Default
+	}
+	webhook := notify.NewSender()
+
 	ingestSvc, err := ingest.New(ingest.Options{
 		DB: db, Hosts: hostSvc, Status: liveStatus, Logger: logger, TimeZone: timeZone,
 	})
@@ -171,14 +182,9 @@ func serve(logger *slog.Logger) error {
 		AgentEndpoint: cfg.agentEndpoint,
 		ClientIP:      web.NewClientIPResolver(cfg.trustedProxies, logger),
 		Logger:        logger,
-		Language: func() string {
-			lang, _, err := db.GetSetting(context.Background(), store.SettingLanguage)
-			if err != nil {
-				logger.Error("read language setting", "err", err)
-			}
-			return lang // unknown or empty values fall back to i18n.Default
-		},
-		TimeZone: timeZone,
+		Language:      language,
+		Webhook:       webhook,
+		TimeZone:      timeZone,
 		DateFormat: func() string {
 			format, _, err := db.GetSetting(context.Background(), store.SettingDateFormat)
 			if err != nil {
@@ -212,6 +218,13 @@ func serve(logger *slog.Logger) error {
 	// Summarizing and pruning run on the same writer as the samples
 	// themselves.
 	go rollupSvc.Run(ctx)
+
+	// Outbound notifications follow the states the evaluator computes.
+	go alerts.New(alerts.Options{
+		DB: db, Hosts: hostSvc, Status: liveStatus, Settings: settingsSvc, Sender: webhook,
+		Text:   func(key string) string { return catalog.Translator(language()).T(key) },
+		Logger: logger,
+	}).Run(ctx)
 
 	srv := &http.Server{
 		Addr:              cfg.listen,
