@@ -1,7 +1,8 @@
-// The settings page's "Send test" button. It posts the webhook address and
-// request body as they are in the form, saved or not, and shows the
-// webhook's reply: the status, then its body and headers under two tabs.
-// Everything is written as text, never markup.
+// The settings page's notification form: the example buttons, which fill
+// in a service's address and body, and "Send test", which posts the address
+// and body as they are in the form, saved or not, and shows the webhook's
+// reply: the status, then its body and headers under two tabs. Everything
+// is written as text, never markup.
 (function () {
   "use strict";
 
@@ -62,6 +63,47 @@
       show(tab.getAttribute("data-notify-tab"));
     });
   });
+
+  // The example buttons replace the address and body with a service's
+  // format; the user then fills in the placeholders.
+  var examples = {
+    telegram: {
+      url: "https://api.telegram.org/bot<token>/sendMessage",
+      body: '{"chat_id": "<chat id>", "text": "{{message}}"}',
+    },
+    discord: {
+      url: "https://discord.com/api/webhooks/<id>/<token>",
+      body: '{"content": "{{message}}"}',
+    },
+    slack: {
+      url: "https://hooks.slack.com/services/<...>",
+      body: '{"text": "{{message}}"}',
+    },
+    feishu: {
+      url: "https://open.feishu.cn/open-apis/bot/v2/hook/<token>",
+      body: '{"msg_type": "text", "content": {"text": "{{message}}"}}',
+    },
+    dingtalk: {
+      url: "https://oapi.dingtalk.com/robot/send?access_token=<token>",
+      body: '{"msgtype": "text", "text": {"content": "{{message}}"}}',
+    },
+  };
+  var exampleRow = form.querySelector("[data-notify-examples]");
+  if (exampleRow) {
+    Array.prototype.forEach.call(exampleRow.querySelectorAll("[data-notify-example]"), function (b) {
+      b.addEventListener("click", function () {
+        var example = examples[b.getAttribute("data-notify-example")];
+        if (!example) {
+          return;
+        }
+        form.elements.webhook_url.value = example.url;
+        form.elements.webhook_body.value = example.body;
+        result.hidden = true;
+        report(null, "");
+      });
+    });
+    exampleRow.hidden = false;
+  }
 
   button.addEventListener("click", function () {
     if (button.disabled) {

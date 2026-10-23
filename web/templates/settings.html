@@ -107,8 +107,16 @@
 <label class="block">
 <span class="mb-1 block text-sm font-medium">{{t "settings.notify.body"}}</span>
 <textarea name="webhook_body" rows="4" maxlength="8192" spellcheck="false" autocapitalize="none" autocorrect="off" class="w-full resize-y rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-gray-500 focus:outline-none">{{.Body}}</textarea>
-<span class="mt-1 block text-xs text-gray-500">{{t "settings.notify.body.hint"}} <a href="https://github.com/kergeio/kerge-panel#notifications" target="_blank" rel="noopener noreferrer" class="text-gray-700 underline hover:text-gray-900">{{t "settings.notify.examples"}}</a></span>
+<span class="mt-1 block text-xs text-gray-500">{{t "settings.notify.body.hint"}}</span>
 </label>
+<div data-notify-examples hidden class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+<span>{{t "settings.notify.examples"}}</span>
+<button type="button" data-notify-example="telegram" class="text-gray-700 underline hover:text-gray-900">{{t "settings.notify.example.telegram"}}</button>
+<button type="button" data-notify-example="discord" class="text-gray-700 underline hover:text-gray-900">{{t "settings.notify.example.discord"}}</button>
+<button type="button" data-notify-example="slack" class="text-gray-700 underline hover:text-gray-900">{{t "settings.notify.example.slack"}}</button>
+<button type="button" data-notify-example="feishu" class="text-gray-700 underline hover:text-gray-900">{{t "settings.notify.example.feishu"}}</button>
+<button type="button" data-notify-example="dingtalk" class="text-gray-700 underline hover:text-gray-900">{{t "settings.notify.example.dingtalk"}}</button>
+</div>
 <div class="space-y-2">
 <div class="flex items-center gap-3">
 <button type="button" data-notify-test class="rounded-md border border-gray-300 bg-white px-4 py-2 font-medium hover:bg-gray-50 disabled:opacity-50">{{t "settings.notify.test"}}</button>
