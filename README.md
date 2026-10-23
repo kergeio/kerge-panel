@@ -9,6 +9,10 @@ installs the panel, one command adds each host.
 - Read-only by design: the [agent](https://github.com/kergeio/kerge-agent)
   only reports out and never runs commands
 
+![Kerge dashboard, card view](docs/images/dashboard-card.png)
+
+![Kerge dashboard, list view](docs/images/dashboard-list.png)
+
 ## Quick start
 
 You need a Linux server with a domain pointing at it (for example
