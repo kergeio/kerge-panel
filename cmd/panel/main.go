@@ -222,8 +222,9 @@ func serve(logger *slog.Logger) error {
 	// Outbound notifications follow the states the evaluator computes.
 	go alerts.New(alerts.Options{
 		DB: db, Hosts: hostSvc, Status: liveStatus, Settings: settingsSvc, Sender: webhook,
-		Text:   func(key string) string { return catalog.Translator(language()).T(key) },
-		Logger: logger,
+		Translator: func() *i18n.Translator { return catalog.Translator(language()) },
+		TimeZone:   timeZone,
+		Logger:     logger,
 	}).Run(ctx)
 
 	srv := &http.Server{

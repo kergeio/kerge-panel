@@ -18,9 +18,11 @@ import (
 	"github.com/kergeio/kerge-panel/internal/hosts"
 	"github.com/kergeio/kerge-panel/internal/i18n"
 	"github.com/kergeio/kerge-panel/internal/notify"
+	"github.com/kergeio/kerge-panel/internal/reminder"
 	"github.com/kergeio/kerge-panel/internal/settings"
 	"github.com/kergeio/kerge-panel/internal/status"
 	"github.com/kergeio/kerge-panel/internal/store"
+	"github.com/kergeio/kerge-panel/internal/traffic"
 	webfiles "github.com/kergeio/kerge-panel/web"
 )
 
@@ -66,6 +68,7 @@ type rig struct {
 	watcher  *Watcher
 	hook     *hook
 	now      time.Time
+	loc      *time.Location
 }
 
 func newRig(t *testing.T) *rig {
@@ -84,14 +87,15 @@ func newRig(t *testing.T) *rig {
 		t.Fatal(err)
 	}
 	r := &rig{t: t, db: db, hosts: hosts.NewService(db), settings: settings.NewService(db), hook: newHook(t),
-		now: time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)}
+		now: time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC), loc: time.UTC}
 	clock := func() time.Time { return r.now }
 	r.status = status.New(status.Options{Now: clock})
 	r.watcher = New(Options{
 		DB: db, Hosts: r.hosts, Status: r.status, Settings: r.settings, Sender: notify.NewSender(),
-		Text:   cat.Translator("en").T,
-		Logger: slog.New(slog.DiscardHandler),
-		Now:    clock,
+		Translator: func() *i18n.Translator { return cat.Translator("en") },
+		TimeZone:   func() *time.Location { return r.loc },
+		Logger:     slog.New(slog.DiscardHandler),
+		Now:        clock,
 	})
 	cfg := notify.Default()
 	cfg.Enabled = true
@@ -297,5 +301,171 @@ func TestDeletedHostLeavesNoAlert(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("%d alert rows left after deleting the host", n)
+	}
+}
+
+// onlyDateEvents switches the offline event off, for tests that move the
+// clock by hours or days, which takes every host offline.
+func (r *rig) onlyDateEvents() {
+	r.t.Helper()
+	cfg, err := r.settings.Notifications(r.t.Context())
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	cfg.Offline = false
+	r.configure(cfg)
+}
+
+func date(y int, m time.Month, d int) reminder.Date { return reminder.Date{Year: y, Month: m, Day: d} }
+
+func TestRenewalOnTheReminderDay(t *testing.T) {
+	r := newRig(t)
+	r.onlyDateEvents()
+	id := r.addHost("web-1", "203.0.113.10")
+	if err := r.hosts.SetReminder(t.Context(), id, date(2026, 10, 23), 1); err != nil {
+		t.Fatal(err)
+	}
+	r.status.Connected(id, 5*time.Second, nil)
+
+	r.now = time.Date(2026, 10, 23, 8, 59, 0, 0, time.UTC)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("before 09:00: sent %q", got)
+	}
+	r.now = time.Date(2026, 10, 23, 9, 0, 0, 0, time.UTC)
+	want := []string{"[Kerge] web-1 (203.0.113.10) renewal due today"}
+	if got := r.check(); !equal(got, want) {
+		t.Fatalf("at 09:00: sent %q, want %q", got, want)
+	}
+	r.advance(time.Hour)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("later that day: sent %q again", got)
+	}
+	// The next day the reminder is still due, but it is not its day.
+	r.now = time.Date(2026, 10, 24, 10, 0, 0, 0, time.UTC)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("the day after: sent %q", got)
+	}
+	// The next reminder date is reported again.
+	r.now = time.Date(2026, 11, 23, 9, 30, 0, 0, time.UTC)
+	if got := r.check(); !equal(got, want) {
+		t.Fatalf("next month: sent %q, want %q", got, want)
+	}
+}
+
+func TestRenewalAlreadyConfirmed(t *testing.T) {
+	r := newRig(t)
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	if err := r.hosts.SetReminder(t.Context(), id, date(2026, 10, 23), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.hosts.AckReminder(t.Context(), id, date(2026, 10, 23)); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("confirmed before 09:00: sent %q", got)
+	}
+}
+
+func TestRenewalFollowsThePanelTimeZone(t *testing.T) {
+	r := newRig(t)
+	r.onlyDateEvents()
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.loc = loc
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	if err := r.hosts.SetReminder(t.Context(), id, date(2026, 10, 24), 12); err != nil {
+		t.Fatal(err)
+	}
+	// 00:30 UTC on the 24th is 08:30 in Shanghai: not yet.
+	r.now = time.Date(2026, 10, 24, 0, 30, 0, 0, time.UTC)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("08:30 local: sent %q", got)
+	}
+	// 01:00 UTC is 09:00 local.
+	r.now = time.Date(2026, 10, 24, 1, 0, 0, 0, time.UTC)
+	if got := r.check(); len(got) != 1 {
+		t.Fatalf("09:00 local: sent %q, want one message", got)
+	}
+}
+
+// addTraffic stores the traffic of one day.
+func (r *rig) addTraffic(id int64, day reminder.Date, rx, tx int64) {
+	r.t.Helper()
+	err := r.db.Write(r.t.Context(), func(ctx context.Context, tx2 *sql.Tx) error {
+		_, err := tx2.ExecContext(ctx,
+			`INSERT INTO traffic_daily (host_id, day, rx_bytes, tx_bytes) VALUES (?, ?, ?, ?)
+			 ON CONFLICT (host_id, day) DO UPDATE SET rx_bytes = rx_bytes + excluded.rx_bytes, tx_bytes = tx_bytes + excluded.tx_bytes`,
+			id, day.String(), rx, tx)
+		return err
+	})
+	if err != nil {
+		r.t.Fatal(err)
+	}
+}
+
+const mib = 1 << 20
+
+func TestTrafficLimitOncePerCycle(t *testing.T) {
+	r := newRig(t)
+	r.onlyDateEvents()
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	if err := r.hosts.SetTraffic(t.Context(), id, traffic.Settings{Mode: traffic.Both, ResetDay: 1, LimitBytes: 1024 * mib}); err != nil {
+		t.Fatal(err)
+	}
+	// Last cycle's traffic does not count.
+	r.addTraffic(id, date(2026, 9, 30), 5000*mib, 0)
+	r.addTraffic(id, date(2026, 10, 5), 600*mib, 300*mib)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("900 MiB of 1 GiB: sent %q", got)
+	}
+	r.addTraffic(id, date(2026, 10, 20), 124*mib, 0)
+	want := []string{"[Kerge] web-1 (203.0.113.10) traffic reached the limit of 1.0 GiB"}
+	if got := r.check(); !equal(got, want) {
+		t.Fatalf("at the limit: sent %q, want %q", got, want)
+	}
+	r.addTraffic(id, date(2026, 10, 23), 500*mib, 0)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("over the limit: sent %q again", got)
+	}
+	// A new cycle starts from nothing, and is reported again once full.
+	r.now = time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("new cycle: sent %q", got)
+	}
+	r.addTraffic(id, date(2026, 11, 1), 2048*mib, 0)
+	if got := r.check(); !equal(got, want) {
+		t.Fatalf("new cycle at the limit: sent %q, want %q", got, want)
+	}
+}
+
+func TestTrafficCountsTheModeOnly(t *testing.T) {
+	r := newRig(t)
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	if err := r.hosts.SetTraffic(t.Context(), id, traffic.Settings{Mode: traffic.Out, ResetDay: 1, LimitBytes: 1024 * mib}); err != nil {
+		t.Fatal(err)
+	}
+	r.addTraffic(id, date(2026, 10, 10), 4096*mib, 1000*mib)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("outbound under the limit: sent %q", got)
+	}
+	r.addTraffic(id, date(2026, 10, 11), 0, 24*mib)
+	if got := r.check(); len(got) != 1 {
+		t.Fatalf("outbound at the limit: sent %q, want one message", got)
+	}
+}
+
+func TestNoLimitNoTrafficMessage(t *testing.T) {
+	r := newRig(t)
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	r.addTraffic(id, date(2026, 10, 10), 1<<50, 1<<50)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("no limit: sent %q", got)
 	}
 }
