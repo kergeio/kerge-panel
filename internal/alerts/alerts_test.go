@@ -469,3 +469,208 @@ func TestNoLimitNoTrafficMessage(t *testing.T) {
 		t.Fatalf("no limit: sent %q", got)
 	}
 }
+
+// report sends a sample with the given disk, memory and CPU usage in
+// percent, taken now.
+func (r *rig) report(id int64, disk, mem, cpu float64) {
+	total := uint64(1000)
+	du, mu := uint64(disk*10), uint64(mem*10)
+	r.status.Report(id, status.Sample{At: r.now, DiskUsed: &du, DiskTotal: &total, MemUsed: &mu, MemTotal: &total, CPU: &cpu})
+}
+
+// minute moves the clock on by a minute, reports and checks.
+func (r *rig) minute(id int64, disk, mem, cpu float64) []string {
+	r.t.Helper()
+	r.advance(time.Minute)
+	r.report(id, disk, mem, cpu)
+	return r.check()
+}
+
+func TestDiskOverThreshold(t *testing.T) {
+	r := newRig(t)
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	r.report(id, 92, 10, 5)
+	if got := r.check(); len(got) != 0 {
+		t.Fatalf("first sample over: sent %q", got)
+	}
+	for i := 1; i < 5; i++ {
+		if got := r.minute(id, 92, 10, 5); len(got) != 0 {
+			t.Fatalf("over for %d min: sent %q", i, got)
+		}
+	}
+	want := []string{"[Kerge] web-1 (203.0.113.10) disk usage 92.0% (≥ 90% for 5 min)"}
+	if got := r.minute(id, 92, 10, 5); !equal(got, want) {
+		t.Fatalf("over for 5 min: sent %q, want %q", got, want)
+	}
+	if got := r.minute(id, 95, 10, 5); len(got) != 0 {
+		t.Fatalf("still over: sent %q again", got)
+	}
+	// Back under: reported once it has stayed under for 5 minutes too.
+	for i := 0; i < 5; i++ {
+		if got := r.minute(id, 85, 10, 5); len(got) != 0 {
+			t.Fatalf("under for %d min: sent %q", i, got)
+		}
+	}
+	want = []string{"[Kerge] web-1 (203.0.113.10) disk usage back to 85.0%"}
+	if got := r.minute(id, 85, 10, 5); !equal(got, want) {
+		t.Fatalf("under for 5 min: sent %q, want %q", got, want)
+	}
+	if got := r.minute(id, 85, 10, 5); len(got) != 0 {
+		t.Fatalf("still under: sent %q again", got)
+	}
+}
+
+func TestADipStartsTheMinutesOver(t *testing.T) {
+	r := newRig(t)
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	r.report(id, 95, 10, 5)
+	r.check()
+	for i := 0; i < 3; i++ {
+		r.minute(id, 95, 10, 5)
+	}
+	r.minute(id, 50, 10, 5) // one sample under
+	// The minutes count from the first sample over again.
+	for i := 0; i < 5; i++ {
+		if got := r.minute(id, 95, 10, 5); len(got) != 0 {
+			t.Fatalf("over again for %d min: sent %q", i, got)
+		}
+	}
+	if got := r.minute(id, 95, 10, 5); len(got) != 1 {
+		t.Fatalf("over again for 5 min: sent %q, want one message", got)
+	}
+}
+
+func TestUsageNeedsAnOnlineHost(t *testing.T) {
+	r := newRig(t)
+	r.onlyDateEvents() // the offline message is not what this is about
+	id := r.addHost("web-1", "203.0.113.10")
+	disconnect := r.status.Connected(id, 5*time.Second, nil)
+	r.report(id, 95, 10, 5)
+	r.check()
+	for i := 0; i < 3; i++ {
+		r.minute(id, 95, 10, 5)
+	}
+	// Offline for a while: the last sample does not keep counting.
+	disconnect()
+	for i := 0; i < 10; i++ {
+		r.advance(time.Minute)
+		if got := r.check(); len(got) != 0 {
+			t.Fatalf("offline: sent %q", got)
+		}
+	}
+	r.status.Connected(id, 5*time.Second, nil)
+	for i := 0; i < 5; i++ {
+		if got := r.minute(id, 95, 10, 5); len(got) != 0 {
+			t.Fatalf("back and over for %d min: sent %q", i, got)
+		}
+	}
+	if got := r.minute(id, 95, 10, 5); len(got) != 1 {
+		t.Fatalf("back and over for 5 min: sent %q, want one message", got)
+	}
+}
+
+func TestMemoryAndCPU(t *testing.T) {
+	r := newRig(t)
+	cfg, err := r.settings.Notifications(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Disk.On = false
+	cfg.Memory = notify.Threshold{On: true, Percent: 80, Minutes: 2}
+	cfg.CPU = notify.Threshold{On: true, Percent: 75, Minutes: 3}
+	r.configure(cfg)
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	r.report(id, 99, 85, 80)
+	r.check()
+	r.minute(id, 99, 85, 80)
+	want := []string{"[Kerge] web-1 (203.0.113.10) memory usage 85.0% (≥ 80% for 2 min)"}
+	if got := r.minute(id, 99, 85, 80); !equal(got, want) {
+		t.Fatalf("memory: sent %q, want %q", got, want)
+	}
+	want = []string{"[Kerge] web-1 (203.0.113.10) CPU usage 80.0% (≥ 75% for 3 min)"}
+	if got := r.minute(id, 99, 85, 80); !equal(got, want) {
+		t.Fatalf("cpu: sent %q, want %q", got, want)
+	}
+	r.minute(id, 99, 10, 10) // under from here
+	r.minute(id, 99, 10, 10)
+	want = []string{"[Kerge] web-1 (203.0.113.10) memory usage back to 10.0%"}
+	if got := r.minute(id, 99, 10, 10); !equal(got, want) {
+		t.Fatalf("memory back: sent %q, want %q", got, want)
+	}
+	want = []string{"[Kerge] web-1 (203.0.113.10) CPU usage back to 10.0%"}
+	if got := r.minute(id, 99, 10, 10); !equal(got, want) {
+		t.Fatalf("cpu back: sent %q, want %q", got, want)
+	}
+}
+
+func TestUsageSwitchedOffIsTrackedButNotSent(t *testing.T) {
+	r := newRig(t)
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	// CPU is off by default.
+	r.report(id, 10, 10, 99)
+	r.check()
+	for i := 0; i < 15; i++ {
+		if got := r.minute(id, 10, 10, 99); len(got) != 0 {
+			t.Fatalf("cpu switched off: sent %q", got)
+		}
+	}
+	// Switched on during the episode: its start is not reported, its end
+	// is.
+	cfg, err := r.settings.Notifications(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.CPU.On = true
+	r.configure(cfg)
+	if got := r.minute(id, 10, 10, 99); len(got) != 0 {
+		t.Fatalf("switched on while over: sent %q", got)
+	}
+	// The default duration is 10 minutes, counted from the first sample
+	// under.
+	for i := 0; i < 10; i++ {
+		if got := r.minute(id, 10, 10, 20); len(got) != 0 {
+			t.Fatalf("under for %d min: sent %q", i, got)
+		}
+	}
+	want := []string{"[Kerge] web-1 (203.0.113.10) CPU usage back to 20.0%"}
+	if got := r.minute(id, 10, 10, 20); !equal(got, want) {
+		t.Fatalf("under for 10 min: sent %q, want %q", got, want)
+	}
+	if n := countAlerts(t, r, "cpu"); n != 0 {
+		t.Fatalf("cpu row still there: %d", n)
+	}
+}
+
+func TestUsageAcrossARestart(t *testing.T) {
+	r := newRig(t)
+	id := r.addHost("web-1", "203.0.113.10")
+	r.status.Connected(id, 5*time.Second, nil)
+	r.report(id, 95, 10, 5)
+	r.check()
+	for i := 0; i < 5; i++ {
+		r.minute(id, 95, 10, 5)
+	}
+	if n := countAlerts(t, r, "disk"); n != 1 {
+		t.Fatalf("disk rows = %d, want 1", n)
+	}
+	// A new watcher, as after a restart: still over, nothing is sent again.
+	r.watcher = New(r.watcher.opts)
+	for i := 0; i < 10; i++ {
+		if got := r.minute(id, 95, 10, 5); len(got) != 0 {
+			t.Fatalf("after a restart: sent %q again", got)
+		}
+	}
+}
+
+func countAlerts(t *testing.T, r *rig, kind string) int {
+	t.Helper()
+	var n int
+	if err := r.db.Read().QueryRowContext(t.Context(), "SELECT COUNT(*) FROM alerts WHERE kind = ?", kind).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}

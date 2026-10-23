@@ -9,6 +9,12 @@
 //     when the host goes offline and deleted when it is back online.
 //   - renewal: since is the reminder date last notified.
 //   - traffic: since is the first day of the billing cycle last notified.
+//   - disk, memory, cpu: the row exists while usage is over the threshold.
+//     It is written once usage has stayed at or above the threshold for
+//     the set minutes, and deleted once it has stayed below for as long.
+//     How long usage has been above or below is kept in memory, from the
+//     latest sample every check, so after a restart the minutes start
+//     over.
 //
 // Rows are kept whether or not the event is switched on, so switching it on
 // later does not report events that happened before.
@@ -18,6 +24,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +43,9 @@ const (
 	kindOffline = "offline"
 	kindRenewal = "renewal"
 	kindTraffic = "traffic"
+	kindDisk    = "disk"
+	kindMemory  = "memory"
+	kindCPU     = "cpu"
 )
 
 // renewalHour is the hour of the reminder day, in the panel's time zone,
@@ -59,9 +69,19 @@ type Options struct {
 	Now func() time.Time
 }
 
-// Watcher checks the hosts and sends notifications.
+// Watcher checks the hosts and sends notifications. Check is not safe for
+// concurrent use; Run calls it from one goroutine.
 type Watcher struct {
 	opts Options
+	// usage tracks, per host and usage kind, since when usage has stayed
+	// above or below its threshold.
+	usage map[alertKey]*streak
+}
+
+// streak is how long usage has stayed on one side of a threshold. At most
+// one of the two times is set.
+type streak struct {
+	above, below time.Time
 }
 
 // New returns a watcher.
@@ -69,7 +89,7 @@ func New(opts Options) *Watcher {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
-	return &Watcher{opts: opts}
+	return &Watcher{opts: opts, usage: make(map[alertKey]*streak)}
 }
 
 // Run checks every status.EvalInterval until ctx is done.
@@ -109,7 +129,15 @@ func (w *Watcher) Check(ctx context.Context) error {
 			enrolled = append(enrolled, rec)
 		}
 	}
-	if err := w.checkOffline(ctx, cfg, enrolled, stored); err != nil {
+	ids := make([]int64, len(enrolled))
+	for i, rec := range enrolled {
+		ids[i] = rec.ID
+	}
+	lives := w.opts.Status.All(ids)
+	if err := w.checkOffline(ctx, cfg, enrolled, lives, stored); err != nil {
+		return err
+	}
+	if err := w.checkUsage(ctx, cfg, enrolled, lives, stored); err != nil {
 		return err
 	}
 	local := w.opts.Now().In(w.location())
@@ -121,15 +149,10 @@ func (w *Watcher) Check(ctx context.Context) error {
 }
 
 // checkOffline reports a host going offline, and coming back online.
-func (w *Watcher) checkOffline(ctx context.Context, cfg notify.Config, records []hosts.Record, stored map[alertKey]int64) error {
-	byID := make(map[int64]hosts.Record, len(records))
-	ids := make([]int64, 0, len(records))
-	for _, rec := range records {
-		byID[rec.ID] = rec
-		ids = append(ids, rec.ID)
-	}
-	for _, live := range w.opts.Status.All(ids) {
-		rec := byID[live.HostID]
+// lives holds the live view of records, in the same order.
+func (w *Watcher) checkOffline(ctx context.Context, cfg notify.Config, records []hosts.Record, lives []status.Live, stored map[alertKey]int64) error {
+	for i, live := range lives {
+		rec := records[i]
 		_, offline := stored[alertKey{rec.ID, kindOffline}]
 		switch {
 		case live.State == status.Offline && !offline:
@@ -213,6 +236,110 @@ func (w *Watcher) checkTraffic(ctx context.Context, cfg notify.Config, records [
 		}
 	}
 	return nil
+}
+
+// usageKind is one of the usage events.
+type usageKind struct {
+	kind string
+	// value returns the usage in percent, and false when the sample does
+	// not have it.
+	value func(status.Sample) (float64, bool)
+	// limit returns the event's settings.
+	limit func(notify.Config) notify.Threshold
+}
+
+var usageKinds = []usageKind{
+	{kindDisk, func(s status.Sample) (float64, bool) { return share(s.DiskUsed, s.DiskTotal) },
+		func(c notify.Config) notify.Threshold { return c.Disk }},
+	{kindMemory, func(s status.Sample) (float64, bool) { return share(s.MemUsed, s.MemTotal) },
+		func(c notify.Config) notify.Threshold { return c.Memory }},
+	{kindCPU, func(s status.Sample) (float64, bool) {
+		if s.CPU == nil {
+			return 0, false
+		}
+		return *s.CPU, true
+	}, func(c notify.Config) notify.Threshold { return c.CPU }},
+}
+
+// share is used as a percentage of total, the way the dashboard shows it.
+func share(used, total *uint64) (float64, bool) {
+	if used == nil || total == nil || *total == 0 {
+		return 0, false
+	}
+	return float64(*used) / float64(*total) * 100, true
+}
+
+// checkUsage reports usage that has stayed at or above its threshold for
+// the set minutes, and its return below the threshold for as long. Only a
+// host that is online counts; anything else starts the minutes over.
+func (w *Watcher) checkUsage(ctx context.Context, cfg notify.Config, records []hosts.Record, lives []status.Live, stored map[alertKey]int64) error {
+	now := w.opts.Now()
+	seen := make(map[alertKey]bool)
+	for i, live := range lives {
+		rec := records[i]
+		for _, u := range usageKinds {
+			key := alertKey{rec.ID, u.kind}
+			seen[key] = true
+			v, ok := u.value(live.Sample)
+			if live.State != status.Online || !live.HasSample || !ok {
+				delete(w.usage, key)
+				continue
+			}
+			st := w.usage[key]
+			if st == nil {
+				st = &streak{}
+				w.usage[key] = st
+			}
+			limit := u.limit(cfg)
+			hold := time.Duration(limit.Minutes) * time.Minute
+			_, firing := stored[key]
+			if v >= float64(limit.Percent) {
+				st.below = time.Time{}
+				if st.above.IsZero() {
+					st.above = now
+				}
+				if firing || now.Sub(st.above) < hold {
+					continue
+				}
+				if err := w.record(ctx, rec.ID, u.kind, now.Unix()); err != nil {
+					return err
+				}
+				if cfg.Enabled && limit.On {
+					w.send(ctx, cfg, rec, "notify.message."+u.kind+".high", w.usageText(v, limit))
+				}
+				continue
+			}
+			st.above = time.Time{}
+			if st.below.IsZero() {
+				st.below = now
+			}
+			if !firing || now.Sub(st.below) < hold {
+				continue
+			}
+			if err := w.end(ctx, rec.ID, u.kind); err != nil {
+				return err
+			}
+			if cfg.Enabled && limit.On {
+				w.send(ctx, cfg, rec, "notify.message."+u.kind+".back", w.usageText(v, limit))
+			}
+		}
+	}
+	// Forget hosts that were deleted or are no longer enrolled.
+	for key := range w.usage {
+		if !seen[key] {
+			delete(w.usage, key)
+		}
+	}
+	return nil
+}
+
+// usageText fills the value, threshold and minutes of a usage message.
+func (w *Watcher) usageText(v float64, limit notify.Threshold) *strings.Replacer {
+	return strings.NewReplacer(
+		"{value}", w.opts.Translator().Percent(min(v, 100)),
+		"{threshold}", strconv.Itoa(limit.Percent)+"%",
+		"{minutes}", strconv.Itoa(limit.Minutes),
+	)
 }
 
 func (w *Watcher) location() *time.Location {
